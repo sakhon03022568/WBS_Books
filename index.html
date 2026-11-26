@@ -100,14 +100,14 @@
     <p id="loaderText" class="text-amber-300 font-medium">กำลังโหลดข้อมูลจากชีต 48Form & คุมงบWBS...</p>
   </div>
 
-  <!-- Modal กรอกชื่อผู้ขอใช้งบ -->
+  <!-- Modal กรอก/แก้ไขชื่อผู้ขอใช้งบ -->
   <div id="requesterModal" class="no-print hidden fixed inset-0 bg-[#140826]/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="purple-card rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-amber-400/50">
       <div class="flex justify-between items-center border-b border-purple-700 pb-2">
-        <h3 class="text-base font-bold text-amber-400">✍️ ระบุชื่อผู้ขอใช้งบประมาณ</h3>
+        <h3 id="modalTitleText" class="text-base font-bold text-amber-400">✍️ ระบุชื่อผู้ขอใช้งบประมาณ</h3>
         <button type="button" onclick="closeRequesterModal()" class="text-purple-300 hover:text-white text-lg leading-none">&times;</button>
       </div>
-      <p class="text-xs text-purple-200">กรุณากรอกชื่อ-สกุล ผู้ขอใช้งบ เพื่อบันทึกประวัติลงในสมุดคุมงบ WBS และแสดงใต้ช่องผู้ขอเบิก</p>
+      <p id="modalDescText" class="text-xs text-purple-200">กรุณากรอกชื่อ-สกุล ผู้ขอใช้งบ เพื่อบันทึกประวัติลงในสมุดคุมงบ WBS และแสดงใต้ช่องผู้ขอเบิก</p>
       <div>
         <label class="block text-xs font-semibold text-amber-300 mb-1">ชื่อผู้ขอใช้งบ</label>
         <input type="text" id="modalRequesterInput" placeholder="เช่น นายสมชาย ใจดี" onkeydown="if(event.key==='Enter') confirmSaveWithRequester(); if(event.key==='Escape') closeRequesterModal();" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/50 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
@@ -411,22 +411,26 @@
       </div>
     </div>
 
+    <!-- รายละเอียดงบประมาณแยกตามโครงข่าย + แยก 4 หมวด + คอลัมน์ขวาสุด คงเหลือในสมุดคุม -->
     <div class="no-print purple-card rounded-2xl p-5">
-      <h3 class="text-sm font-bold text-amber-400 mb-3">รายละเอียดงบประมาณแยกตามโครงข่าย (Network) ของงานนี้</h3>
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+        <h3 class="text-sm font-bold text-amber-400">รายละเอียดงบประมาณแยกตามโครงข่าย (Network) และหมวดค่าใช้จ่าย</h3>
+        <span class="text-xs text-purple-300">แสดงแยก ค่าแรง / ค่าควบคุมงาน / ค่าขนส่ง / ค่าเบ็ดเตล็ด</span>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs sm:text-sm">
           <thead>
             <tr class="border-b border-amber-500/30 text-amber-300 whitespace-nowrap">
-              <th class="py-2.5 px-3">โครงข่าย (Network)</th>
-              <th class="py-2.5 px-3">คำอธิบายโครงข่าย</th>
+              <th class="py-2.5 px-3">โครงข่าย / หมวด</th>
+              <th class="py-2.5 px-3">คำอธิบาย</th>
               <th class="py-2.5 px-3 text-right">แผน คชจ.หน้างาน</th>
               <th class="py-2.5 px-3 text-right">จ่ายจริง SAP</th>
               <th class="py-2.5 px-3 text-right">คงเหลือ SAP</th>
               <th class="py-2.5 px-3 text-right">บันทึกในสมุดคุม</th>
-              <th class="py-2.5 px-3 text-center">เลือกดู</th>
+              <th class="py-2.5 px-3 text-right">คงเหลือในสมุดคุม</th>
             </tr>
           </thead>
-          <tbody id="ldNetworkTableBody" class="divide-y divide-purple-800/50 text-purple-100"></tbody>
+          <tbody id="ldNetworkTableBody" class="divide-y divide-purple-800/40 text-purple-100"></tbody>
         </table>
       </div>
     </div>
@@ -517,6 +521,7 @@
     let wbsDictionary = {};
     let ledgerRows = [];
     let pendingFormPayload = null;
+    let editingLedgerId = null;
     let lastRequesterName = "";
 
     window.onload = loadData;
@@ -753,13 +758,11 @@
       document.getElementById('pvF18').innerText = formatFlexDisplay(f18);
       document.getElementById('pvPctText').innerText = approvePct + "%";
 
-      // งบประมาณตามแผนจากชีต 48Form
       const plnLabor = selectedData ? selectedData.plnLabor : 0;
       const plnCtrl  = selectedData ? selectedData.plnCtrl  : 0;
       const plnTrans = selectedData ? selectedData.plnTrans : 0;
       const plnMisc  = selectedData ? selectedData.plnMisc  : 0;
 
-      // ยอดเบิกจ่ายแล้วจากสมุดคุม (ชีต คุมงบWBS)
       const matchedLedger = wbs
         ? ledgerRows.filter(r => r.wbs === wbs && (!net || r.network === net))
         : [];
@@ -811,6 +814,7 @@
         return;
       }
 
+      editingLedgerId = null;
       pendingFormPayload = {
         docDate: document.getElementById('inDocDate').value.trim() || getTodayThaiStr(),
         activity: document.getElementById('inActivity').value.trim(),
@@ -824,8 +828,22 @@
         w34: document.getElementById('inW34').value
       };
 
+      document.getElementById('modalTitleText').innerText = "✍️ ระบุชื่อผู้ขอใช้งบประมาณ";
+      document.getElementById('modalDescText').innerText = "กรุณากรอกชื่อ-สกุล ผู้ขอใช้งบ เพื่อบันทึกประวัติลงในสมุดคุมงบ WBS และแสดงใต้ช่องผู้ขอเบิก";
       const inputEl = document.getElementById('modalRequesterInput');
       inputEl.value = lastRequesterName;
+      document.getElementById('requesterModal').classList.remove('hidden');
+      setTimeout(() => inputEl.focus(), 50);
+    }
+
+    function openRequesterModalForEdit(id, currentName) {
+      if (!id) return;
+      pendingFormPayload = null;
+      editingLedgerId = id;
+      document.getElementById('modalTitleText').innerText = "✏️ แก้ไข / เพิ่มชื่อผู้ขอใช้งบ";
+      document.getElementById('modalDescText').innerText = "ระบุชื่อ-สกุล ผู้ขอใช้งบสำหรับรายการนี้ในสมุดคุมงบ WBS";
+      const inputEl = document.getElementById('modalRequesterInput');
+      inputEl.value = currentName || "";
       document.getElementById('requesterModal').classList.remove('hidden');
       setTimeout(() => inputEl.focus(), 50);
     }
@@ -833,10 +851,10 @@
     function closeRequesterModal() {
       document.getElementById('requesterModal').classList.add('hidden');
       pendingFormPayload = null;
+      editingLedgerId = null;
     }
 
     async function confirmSaveWithRequester() {
-      if (!pendingFormPayload) return;
       const requester = document.getElementById('modalRequesterInput').value.trim();
       if (!requester) {
         alert("กรุณากรอกชื่อผู้ขอใช้งบประมาณครับ");
@@ -844,13 +862,34 @@
         return;
       }
 
+      const btnConfirm = document.getElementById('btnConfirmSave');
+      btnConfirm.disabled = true;
+      btnConfirm.innerText = "⏳ กำลังบันทึก...";
+
+      // โหมดแก้ไขชื่อผู้ขอใช้งบของรายการเดิมในสมุดคุม
+      if (editingLedgerId) {
+        try {
+          const res = await apiPost('updateLedgerRequester', { id: editingLedgerId, requester });
+          if (res && res.ledgerRows) {
+            ledgerRows = res.ledgerRows;
+            renderLedgerView();
+          }
+          closeRequesterModal();
+        } catch (err) {
+          alert("อัปเดตชื่อไม่สำเร็จ: " + err.message);
+        } finally {
+          btnConfirm.disabled = false;
+          btnConfirm.innerText = "✅ ยืนยันและบันทึก";
+        }
+        return;
+      }
+
+      // โหมดบันทึกใบรับรองฯ ใหม่
+      if (!pendingFormPayload) return;
       lastRequesterName = requester;
       const payload = { ...pendingFormPayload, requester };
 
-      const btnConfirm = document.getElementById('btnConfirmSave');
       const btnSave = document.getElementById('btnSave');
-      btnConfirm.disabled = true;
-      btnConfirm.innerText = "⏳ กำลังบันทึก...";
       btnSave.disabled = true;
       btnSave.innerText = "⏳ กำลังบันทึก...";
 
@@ -898,7 +937,8 @@
     }
 
     function filterByNetworkFromTable(net) {
-      document.getElementById('ledgerNetworkFilter').value = net;
+      const filterEl = document.getElementById('ledgerNetworkFilter');
+      filterEl.value = (filterEl.value === net) ? "" : net;
       renderLedgerView();
     }
 
@@ -949,7 +989,6 @@
       document.getElementById('ldUsagePctText').innerText = (sumApproved > 0 ? ((sumSapAct / sumApproved) * 100).toFixed(1) : "0.0") + "%";
       document.getElementById('ldProgressBar').style.width = usagePct + "%";
 
-      // การ์ด 1 แสดงยอดอนุมัติ
       document.getElementById('ldCardApprovedTitle').innerText = `คชจ.หน้างานที่อนุมัติ (${approvePct}%)`;
       document.getElementById('ldCardApprovedMain').innerText = fmtMoney(sumApproved) + " ฿";
       document.getElementById('ldCardPlanSub').innerText = `แผน 100%: ${fmtMoney(sumPlan)} ฿`;
@@ -964,34 +1003,78 @@
       netRemEl.className = "text-xl font-bold mt-1 " + (netRemaining < 0 ? "text-rose-400" : "text-emerald-400");
       document.getElementById('ldCardBaseNote').innerText = "ฐาน: " + baseText;
 
+      // ตารางรายละเอียดโครงข่าย + 4 หมวด + คอลัมน์ขวาสุด คงเหลือในสมุดคุม
       const netTbody = document.getElementById('ldNetworkTableBody');
       if (!wbsObj || wbsObj.networks.length === 0) {
         netTbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-purple-400">ไม่มีข้อมูลโครงข่ายย่อย</td></tr>`;
       } else {
+        const remClass = (val) => val < 0 ? 'text-rose-400 font-semibold' : 'text-emerald-300 font-semibold';
         netTbody.innerHTML = wbsObj.networks.map(n => {
           const nPlan = (n.plnLabor || 0) + (n.plnCtrl || 0) + (n.plnTrans || 0) + (n.plnMisc || 0);
+          const nApproved = nPlan * (approvePct / 100);
           const nAct  = (n.actLabor || 0) + (n.actCtrl || 0) + (n.actTrans || 0) + (n.actMisc || 0);
-          const nRem  = nPlan - nAct;
-          const nBook = ledgerRows
-            .filter(r => r.wbs === wbs && r.network === n.network)
-            .reduce((s, r) => s + r.labor + r.ctrl + r.trans + r.misc, 0);
+          const nSapRem = nPlan - nAct;
+
+          const nBookRows = ledgerRows.filter(r => r.wbs === wbs && r.network === n.network);
+          const bLabor = nBookRows.reduce((s, r) => s + (r.labor || 0), 0);
+          const bCtrl  = nBookRows.reduce((s, r) => s + (r.ctrl  || 0), 0);
+          const bTrans = nBookRows.reduce((s, r) => s + (r.trans || 0), 0);
+          const bMisc  = nBookRows.reduce((s, r) => s + (r.misc  || 0), 0);
+          const nBook  = bLabor + bCtrl + bTrans + bMisc;
+
+          const nBookRemPlan = nPlan - nBook;
+          const nBookRemApp  = nApproved - nBook;
           const isSelected = net === n.network;
 
-          return `
-            <tr class="${isSelected ? 'bg-amber-500/15' : 'hover:bg-purple-900/40'} transition">
-              <td class="py-2 px-3 font-semibold text-amber-300 whitespace-nowrap">${escapeHtml(n.network)}</td>
-              <td class="py-2 px-3">${escapeHtml(n.desc || "-")}</td>
-              <td class="py-2 px-3 text-right">${fmtMoney(nPlan)}</td>
-              <td class="py-2 px-3 text-right text-amber-200">${fmtMoney(nAct)}</td>
-              <td class="py-2 px-3 text-right ${nRem < 0 ? 'text-rose-400 font-semibold' : 'text-emerald-300'}">${fmtMoney(nRem)}</td>
-              <td class="py-2 px-3 text-right text-sky-300">${fmtMoney(nBook)}</td>
-              <td class="py-2 px-3 text-center">
-                <button data-net="${escapeHtml(n.network)}" onclick="filterByNetworkFromTable(this.dataset.net)" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${isSelected ? 'gold-gradient text-purple-950' : 'bg-purple-800 text-amber-300 hover:bg-purple-700'}">
-                  ${isSelected ? 'กำลังดู' : 'กรองดู'}
-                </button>
+          const cats = [
+            { label: "ค่าแรง",        desc: "ค่าจ้างแรงงาน 53052020", pln: n.plnLabor || 0, act: n.actLabor || 0, book: bLabor },
+            { label: "ค่าควบคุมงาน",  desc: "ค่าควบคุมงาน 53052040",  pln: n.plnCtrl  || 0, act: n.actCtrl  || 0, book: bCtrl },
+            { label: "ค่าขนส่ง",       desc: "ค่าขนส่ง 53069020",       pln: n.plnTrans || 0, act: n.actTrans || 0, book: bTrans },
+            { label: "ค่าเบ็ดเตล็ด",  desc: "ค่าเบ็ดเตล็ด 53039990",  pln: n.plnMisc  || 0, act: n.actMisc  || 0, book: bMisc }
+          ];
+
+          const mainRowHtml = `
+            <tr class="${isSelected ? 'bg-amber-500/15' : 'bg-purple-950/50'} font-semibold border-t border-amber-500/30">
+              <td class="py-2.5 px-3 text-amber-300 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                  <span>${escapeHtml(n.network)}</span>
+                  <button data-net="${escapeHtml(n.network)}" onclick="filterByNetworkFromTable(this.dataset.net)" class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${isSelected ? 'gold-gradient text-purple-950' : 'bg-purple-800 text-amber-300 hover:bg-purple-700'}">
+                    ${isSelected ? 'กำลังดู' : 'กรองดู'}
+                  </button>
+                </div>
+              </td>
+              <td class="py-2.5 px-3 text-white">${escapeHtml(n.desc || "-")}</td>
+              <td class="py-2.5 px-3 text-right">
+                <div>${fmtMoney(nPlan)}</div>
+                <div class="text-[11px] font-normal text-purple-300">อนุมัติ ${approvePct}%: ${fmtMoney(nApproved)}</div>
+              </td>
+              <td class="py-2.5 px-3 text-right text-amber-200">${fmtMoney(nAct)}</td>
+              <td class="py-2.5 px-3 text-right ${nSapRem < 0 ? 'text-rose-400' : 'text-emerald-300'}">${fmtMoney(nSapRem)}</td>
+              <td class="py-2.5 px-3 text-right text-sky-300">${fmtMoney(nBook)}</td>
+              <td class="py-2.5 px-3 text-right">
+                <div class="${remClass(nBookRemPlan)}">${fmtMoney(nBookRemPlan)}</div>
+                <div class="text-[11px] font-normal ${nBookRemApp < 0 ? 'text-rose-300' : 'text-amber-200'}">เทียบอนุมัติ: ${fmtMoney(nBookRemApp)}</div>
               </td>
             </tr>
           `;
+
+          const subRowsHtml = cats.map(c => {
+            const cSapRem = c.pln - c.act;
+            const cBookRem = c.pln - c.book;
+            return `
+              <tr class="hover:bg-purple-900/30 text-xs transition">
+                <td class="py-1.5 px-3 pl-7 text-purple-200 whitespace-nowrap">↳ ${c.label}</td>
+                <td class="py-1.5 px-3 text-purple-300">${c.desc}</td>
+                <td class="py-1.5 px-3 text-right text-purple-200">${fmtMoney(c.pln)}</td>
+                <td class="py-1.5 px-3 text-right text-amber-200/90">${fmtMoney(c.act)}</td>
+                <td class="py-1.5 px-3 text-right ${cSapRem < 0 ? 'text-rose-400' : 'text-emerald-300/90'}">${fmtMoney(cSapRem)}</td>
+                <td class="py-1.5 px-3 text-right text-sky-300/90">${fmtMoney(c.book)}</td>
+                <td class="py-1.5 px-3 text-right ${cBookRem < 0 ? 'text-rose-400 font-semibold' : 'text-emerald-300'}">${fmtMoney(cBookRem)}</td>
+              </tr>
+            `;
+          }).join('');
+
+          return mainRowHtml + subRowsHtml;
         }).join('');
       }
 
@@ -1079,7 +1162,7 @@
         </tr>
       `;
 
-      // ตารางประวัติรายการล่าสุด (แสดงเฉพาะงาน WBS ที่เลือก)
+      // ตารางประวัติรายการล่าสุด (แสดงเฉพาะงานที่เลือก + ปุ่มแก้ไขชื่อผู้ขอใช้งบ)
       document.getElementById('ldRecentWbsLabel').innerText = wbs ? (net ? `${wbs} / ${net}` : wbs) : "ยังไม่ได้เลือกงาน";
       const recentBody = document.getElementById('ldRecentAllBody');
       if (!wbs) {
@@ -1090,13 +1173,23 @@
         const recent = [...rows].reverse();
         recentBody.innerHTML = recent.map(r => {
           const total = r.labor + r.ctrl + r.trans + r.misc;
+          const reqDisplay = r.requester
+            ? `<span class="text-emerald-300 font-medium">${escapeHtml(r.requester)}</span>`
+            : `<span class="text-purple-400">ยังไม่ระบุ</span>`;
           return `
             <tr class="hover:bg-purple-900/40 transition">
               <td class="py-2 px-3 whitespace-nowrap">${escapeHtml(r.docDate || r.timestamp)}</td>
               <td class="py-2 px-3 font-medium text-amber-300 whitespace-nowrap">${escapeHtml(r.wbs)}</td>
               <td class="py-2 px-3 whitespace-nowrap">${escapeHtml(r.network || "-")}</td>
               <td class="py-2 px-3">${escapeHtml(r.purpose || "-")}</td>
-              <td class="py-2 px-3 whitespace-nowrap text-emerald-300">${escapeHtml(r.requester || "-")}</td>
+              <td class="py-2 px-3 whitespace-nowrap">
+                <div class="flex items-center gap-1.5">
+                  ${reqDisplay}
+                  <button data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.requester)}" onclick="openRequesterModalForEdit(this.dataset.id, this.dataset.name)" class="px-1.5 py-0.5 rounded bg-purple-800 hover:bg-purple-700 text-amber-300 text-[11px]" title="แก้ไข/ระบุชื่อผู้ขอใช้งบ">
+                    ✏️
+                  </button>
+                </div>
+              </td>
               <td class="py-2 px-3 text-right font-semibold text-sky-300">${fmtMoney(total)}</td>
               <td class="py-2 px-3 text-center text-xs text-purple-300">${escapeHtml(r.source || "-")}</td>
             </tr>
