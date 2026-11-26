@@ -94,6 +94,14 @@
     </div>
   </nav>
 
+  <!-- แถบแจ้งเตือนหาก Code.gs ยังไม่ได้ Deploy New version -->
+  <div id="apiVersionWarn" class="no-print hidden max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+    <div class="rounded-xl bg-amber-500/20 border border-amber-400 text-amber-200 px-4 py-3 text-xs sm:text-sm flex flex-wrap justify-between items-center gap-2">
+      <span>⚠️ <b>แจ้งเตือน:</b> ฝั่ง Google Apps Script (<code>Code.gs</code>) ยังไม่ได้ Deploy เป็นเวอร์ชันล่าสุด จึงยังไม่สามารถบันทึกหรืออ่านชื่อ <b>ผู้ขอใช้งบ</b> ได้ (กรุณากด <b>Deploy &gt; Manage deployments &gt; แก้ไข &gt; New version &gt; Deploy</b> ใน Apps Script)</span>
+      <button onclick="document.getElementById('apiVersionWarn').classList.add('hidden')" class="px-2 py-1 rounded bg-amber-500/30 hover:bg-amber-500/50 text-xs">ปิด</button>
+    </div>
+  </div>
+
   <!-- Loading Overlay -->
   <div id="loader" class="no-print fixed inset-0 bg-[#140826]/90 z-50 flex flex-col items-center justify-center px-4 text-center">
     <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-3"></div>
@@ -131,7 +139,9 @@
     <div class="no-print purple-card rounded-2xl p-6 space-y-5 shadow-2xl">
       <div class="flex flex-wrap justify-between items-center gap-2 border-b border-amber-500/30 pb-3">
         <h2 class="text-lg font-bold text-amber-400">กรอกข้อมูลสำหรับออกใบรับรองการขอใช้งบประมาณ</h2>
-        <span class="text-xs text-purple-300">ยอดเบิกจ่ายแล้วและคงเหลือคำนวณจากสมุดคุมงบ (คุมงบWBS)</span>
+        <span id="saveStatusBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-rose-950/80 text-rose-300 border border-rose-500/40">
+          ⚠️ ยังไม่ได้บันทึกข้อมูล (ต้องบันทึกก่อนพิมพ์)
+        </span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -141,7 +151,7 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-amber-300 mb-1">2. เลือก โครงข่าย / Network (ช่อง F16)</label>
-          <select id="selectNetwork" onchange="updatePreview()" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <select id="selectNetwork" onchange="onFormFieldChange()" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
             <option value="">-- กรุณากรอก WBS ก่อน --</option>
           </select>
         </div>
@@ -158,35 +168,35 @@
           <div>
             <label class="block text-xs text-amber-200 mb-1">วันที่</label>
             <div class="flex gap-2">
-              <input type="text" id="inDocDate" oninput="updatePreview()" placeholder="เช่น 26 / พฤศจิกายน / 2569" class="flex-1 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
-              <button type="button" onclick="fillTodayDate('inDocDate', updatePreview)" class="px-3 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold border border-amber-500/30 shrink-0">
+              <input type="text" id="inDocDate" oninput="onFormFieldChange()" placeholder="เช่น 26 / พฤศจิกายน / 2569" class="flex-1 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+              <button type="button" onclick="fillTodayDate('inDocDate', onFormFieldChange)" class="px-3 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold border border-amber-500/30 shrink-0">
                 📅 วันนี้
               </button>
             </div>
           </div>
           <div class="sm:col-span-1 lg:col-span-2">
             <label class="block text-xs text-amber-200 mb-1">จุดประสงค์ (ช่อง F18)</label>
-            <input type="text" id="inF18" oninput="updatePreview()" placeholder="เช่น เพื่อซ่อมรถยนต์ หมายเลขทะเบียน XXX" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inF18" oninput="onFormFieldChange()" placeholder="เช่น เพื่อซ่อมรถยนต์ หมายเลขทะเบียน XXX" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าจ้างแรงงาน (ช่อง W25)</label>
-            <input type="text" id="inW25" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inW25" oninput="onFormFieldChange()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าควบคุมงาน (ช่อง W28)</label>
-            <input type="text" id="inW28" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inW28" oninput="onFormFieldChange()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าขนส่ง (ช่อง W31)</label>
-            <input type="text" id="inW31" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inW31" oninput="onFormFieldChange()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าเบ็ดเตล็ด (ช่อง W34)</label>
-            <input type="text" id="inW34" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inW34" oninput="onFormFieldChange()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-purple-300 mb-1">กิจกรรม (ระบุเพิ่มเติมถ้ามี)</label>
-            <input type="text" id="inActivity" oninput="updatePreview()" placeholder="ระบุรหัสกิจกรรม (ถ้ามี)" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+            <input type="text" id="inActivity" oninput="onFormFieldChange()" placeholder="ระบุรหัสกิจกรรม (ถ้ามี)" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
           </div>
           <div>
             <label class="block text-xs text-purple-300 mb-1">เปอร์เซ็นต์ คชจ.หน้างานอนุมัติ (%)</label>
@@ -203,8 +213,8 @@
           <button onclick="saveForm()" id="btnSave" class="px-5 py-2.5 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 font-semibold border border-amber-500/40 shadow">
             💾 บันทึกลงชีต Form & สมุดคุม
           </button>
-          <button onclick="printSection('form')" class="px-6 py-2.5 rounded-xl gold-gradient text-purple-950 font-bold shadow-lg hover:opacity-95">
-            🖨️ พิมพ์ใบรับรองการขอใช้งบประมาณ (A4)
+          <button onclick="printSection('form')" id="btnPrintForm" class="px-6 py-2.5 rounded-xl bg-slate-700/80 text-slate-300 font-bold border border-slate-500/50 cursor-not-allowed opacity-80">
+            🔒 พิมพ์ใบรับรองฯ (บันทึกก่อนพิมพ์)
           </button>
         </div>
       </div>
@@ -411,7 +421,7 @@
       </div>
     </div>
 
-    <!-- รายละเอียดงบประมาณแยกตามโครงข่าย + แยก 4 หมวด + คอลัมน์ขวาสุด คงเหลือในสมุดคุม -->
+    <!-- รายละเอียดงบประมาณแยกตามโครงข่าย + แยก 4 หมวด -->
     <div class="no-print purple-card rounded-2xl p-5">
       <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h3 class="text-sm font-bold text-amber-400">รายละเอียดงบประมาณแยกตามโครงข่าย (Network) และหมวดค่าใช้จ่าย</h3>
@@ -423,7 +433,7 @@
             <tr class="border-b border-amber-500/30 text-amber-300 whitespace-nowrap">
               <th class="py-2.5 px-3">โครงข่าย / หมวด</th>
               <th class="py-2.5 px-3">คำอธิบาย</th>
-              <th class="py-2.5 px-3 text-right">แผน คชจ.หน้างาน</th>
+              <th class="py-2.5 px-3 text-right">แผน / ยอดอนุมัติ</th>
               <th class="py-2.5 px-3 text-right">จ่ายจริง SAP</th>
               <th class="py-2.5 px-3 text-right">คงเหลือ SAP</th>
               <th class="py-2.5 px-3 text-right">บันทึกในสมุดคุม</th>
@@ -516,6 +526,7 @@
 
   <script>
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyJNZoRi4iJysbRl-5voqOmxhsxt1WdRbT6DH8Fw1_h7epBatLDAf6QTzCIiNj7ZWuh/exec";
+    const EXPECTED_API_VERSION = "v3-requester";
 
     let allRecords = [];
     let wbsDictionary = {};
@@ -523,8 +534,12 @@
     let pendingFormPayload = null;
     let editingLedgerId = null;
     let lastRequesterName = "";
+    let isCurrentFormSaved = false;
 
-    window.onload = loadData;
+    window.onload = () => {
+      updatePrintButtonState();
+      loadData();
+    };
 
     function ensureApiConfigured() {
       if (!GAS_API_URL || GAS_API_URL.includes("วาง_URL_WEB_APP")) {
@@ -586,6 +601,14 @@
         allRecords = res.records || [];
         wbsDictionary = res.wbsMap || {};
         ledgerRows = res.ledgerRows || [];
+
+        const warnEl = document.getElementById('apiVersionWarn');
+        if (res.apiVersion !== EXPECTED_API_VERSION) {
+          warnEl.classList.remove('hidden');
+        } else {
+          warnEl.classList.add('hidden');
+        }
+
         populateWbsDatalist();
         updatePreview();
         renderLedgerView();
@@ -610,7 +633,35 @@
       if (!isForm) renderLedgerView();
     }
 
+    function updatePrintButtonState() {
+      const btn = document.getElementById('btnPrintForm');
+      const badge = document.getElementById('saveStatusBadge');
+      if (!btn || !badge) return;
+
+      if (isCurrentFormSaved) {
+        btn.className = "px-6 py-2.5 rounded-xl gold-gradient text-purple-950 font-bold shadow-lg hover:opacity-95 transition";
+        btn.innerText = "🖨️ พิมพ์ใบรับรองการขอใช้งบประมาณ (A4)";
+        badge.className = "text-xs font-semibold px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40";
+        badge.innerText = "✅ บันทึกข้อมูลแล้ว พร้อมพิมพ์";
+      } else {
+        btn.className = "px-6 py-2.5 rounded-xl bg-slate-700/80 text-slate-300 font-bold border border-slate-500/50 cursor-not-allowed opacity-80 transition";
+        btn.innerText = "🔒 พิมพ์ใบรับรองฯ (บันทึกก่อนพิมพ์)";
+        badge.className = "text-xs font-semibold px-3 py-1 rounded-full bg-rose-950/80 text-rose-300 border border-rose-500/40";
+        badge.innerText = "⚠️ ยังไม่ได้บันทึกข้อมูล (ต้องบันทึกก่อนพิมพ์)";
+      }
+    }
+
+    function markFormUnsaved() {
+      isCurrentFormSaved = false;
+      updatePrintButtonState();
+    }
+
     function printSection(mode) {
+      if (mode === 'form' && !isCurrentFormSaved) {
+        alert("⚠️ กรุณากดปุ่ม '💾 บันทึกลงชีต Form & สมุดคุม' และระบุชื่อผู้ขอใช้งบก่อนสั่งพิมพ์ครับ");
+        return;
+      }
+
       const styleEl = document.getElementById('printDynamicStyle');
       if (mode === 'ledger') {
         document.body.classList.remove('printing-form');
@@ -630,6 +681,7 @@
       const l = document.getElementById('ledgerApprovePct');
       const val = source === 'form' ? f.value : l.value;
       f.value = val; l.value = val;
+      if (source === 'form') markFormUnsaved();
       updatePreview();
       renderLedgerView();
     }
@@ -687,6 +739,11 @@
     }
 
     // ================= TAB 1 LOGIC =================
+    function onFormFieldChange() {
+      markFormUnsaved();
+      updatePreview();
+    }
+
     function clearAdditionalInputs() {
       document.getElementById('inDocDate').value = "";
       document.getElementById('inF18').value = "";
@@ -698,6 +755,7 @@
       document.getElementById('inApprovePct').value = 80;
       document.getElementById('ledgerApprovePct').value = 80;
       document.getElementById('pvRequesterName').innerText = "......................................................";
+      markFormUnsaved();
       updatePreview();
       renderLedgerView();
     }
@@ -714,6 +772,7 @@
         }).join('');
       }
       netSelect.innerHTML = opts;
+      markFormUnsaved();
       updatePreview();
     }
 
@@ -866,7 +925,6 @@
       btnConfirm.disabled = true;
       btnConfirm.innerText = "⏳ กำลังบันทึก...";
 
-      // โหมดแก้ไขชื่อผู้ขอใช้งบของรายการเดิมในสมุดคุม
       if (editingLedgerId) {
         try {
           const res = await apiPost('updateLedgerRequester', { id: editingLedgerId, requester });
@@ -876,7 +934,7 @@
           }
           closeRequesterModal();
         } catch (err) {
-          alert("อัปเดตชื่อไม่สำเร็จ: " + err.message);
+          alert("อัปเดตชื่อไม่สำเร็จ: " + err.message + "\n(ตรวจสอบว่าได้ Deploy Code.gs เป็น New version แล้ว)");
         } finally {
           btnConfirm.disabled = false;
           btnConfirm.innerText = "✅ ยืนยันและบันทึก";
@@ -884,7 +942,6 @@
         return;
       }
 
-      // โหมดบันทึกใบรับรองฯ ใหม่
       if (!pendingFormPayload) return;
       lastRequesterName = requester;
       const payload = { ...pendingFormPayload, requester };
@@ -901,6 +958,11 @@
           updatePreview();
           renderLedgerView();
         }
+        if (res && res.apiVersion !== EXPECTED_API_VERSION) {
+          document.getElementById('apiVersionWarn').classList.remove('hidden');
+        }
+        isCurrentFormSaved = true;
+        updatePrintButtonState();
         closeRequesterModal();
         alert((res && res.message) ? res.message : "บันทึกข้อมูลเรียบร้อยแล้ว!");
       } catch (err) {
@@ -1003,7 +1065,7 @@
       netRemEl.className = "text-xl font-bold mt-1 " + (netRemaining < 0 ? "text-rose-400" : "text-emerald-400");
       document.getElementById('ldCardBaseNote').innerText = "ฐาน: " + baseText;
 
-      // ตารางรายละเอียดโครงข่าย + 4 หมวด + คอลัมน์ขวาสุด คงเหลือในสมุดคุม
+      // ตารางรายละเอียดโครงข่าย + 4 หมวด (แถวหลักแสดงยอดอนุมัติ และยอดคงเหลือเทียบอนุมัติ)
       const netTbody = document.getElementById('ldNetworkTableBody');
       if (!wbsObj || wbsObj.networks.length === 0) {
         netTbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-purple-400">ไม่มีข้อมูลโครงข่ายย่อย</td></tr>`;
@@ -1045,15 +1107,15 @@
               </td>
               <td class="py-2.5 px-3 text-white">${escapeHtml(n.desc || "-")}</td>
               <td class="py-2.5 px-3 text-right">
-                <div>${fmtMoney(nPlan)}</div>
-                <div class="text-[11px] font-normal text-purple-300">อนุมัติ ${approvePct}%: ${fmtMoney(nApproved)}</div>
+                <div class="text-white font-bold">${fmtMoney(nApproved)}</div>
+                <div class="text-[11px] font-normal text-purple-300">แผน 100%: ${fmtMoney(nPlan)}</div>
               </td>
               <td class="py-2.5 px-3 text-right text-amber-200">${fmtMoney(nAct)}</td>
               <td class="py-2.5 px-3 text-right ${nSapRem < 0 ? 'text-rose-400' : 'text-emerald-300'}">${fmtMoney(nSapRem)}</td>
               <td class="py-2.5 px-3 text-right text-sky-300">${fmtMoney(nBook)}</td>
               <td class="py-2.5 px-3 text-right">
-                <div class="${remClass(nBookRemPlan)}">${fmtMoney(nBookRemPlan)}</div>
-                <div class="text-[11px] font-normal ${nBookRemApp < 0 ? 'text-rose-300' : 'text-amber-200'}">เทียบอนุมัติ: ${fmtMoney(nBookRemApp)}</div>
+                <div class="${remClass(nBookRemApp)}">${fmtMoney(nBookRemApp)}</div>
+                <div class="text-[11px] font-normal text-purple-300">เทียบแผน 100%: ${fmtMoney(nBookRemPlan)}</div>
               </td>
             </tr>
           `;
@@ -1162,7 +1224,7 @@
         </tr>
       `;
 
-      // ตารางประวัติรายการล่าสุด (แสดงเฉพาะงานที่เลือก + ปุ่มแก้ไขชื่อผู้ขอใช้งบ)
+      // ตารางประวัติรายการล่าสุดเฉพาะงานที่เลือก
       document.getElementById('ldRecentWbsLabel').innerText = wbs ? (net ? `${wbs} / ${net}` : wbs) : "ยังไม่ได้เลือกงาน";
       const recentBody = document.getElementById('ldRecentAllBody');
       if (!wbs) {
@@ -1241,6 +1303,7 @@
           document.getElementById('selectNetwork').value = network;
         }
       }
+      markFormUnsaved();
       updatePreview();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
