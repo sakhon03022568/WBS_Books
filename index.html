@@ -131,7 +131,7 @@
     <div class="no-print purple-card rounded-2xl p-6 space-y-5 shadow-2xl">
       <div class="flex flex-wrap justify-between items-center gap-2 border-b border-amber-500/30 pb-3">
         <h2 class="text-lg font-bold text-amber-400">กรอกข้อมูลสำหรับออกใบรับรองการขอใช้งบประมาณ</h2>
-        <span class="text-xs text-purple-300">ตัวเลขในตารางจะคำนวณให้อัตโนมัติตาม Network ที่เลือก</span>
+        <span class="text-xs text-purple-300">ยอดเบิกจ่ายแล้วและคงเหลือคำนวณจากสมุดคุมงบ (คุมงบWBS)</span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -387,11 +387,12 @@
       </div>
     </div>
 
+    <!-- 4 Summary Cards -->
     <div class="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="purple-card rounded-2xl p-4">
-        <p class="text-xs text-purple-300">งบประมาณ คชจ.หน้างาน (100%)</p>
-        <h3 id="ldCardPlan" class="text-xl font-bold text-white mt-1">0.00 ฿</h3>
-        <p id="ldCardApproved" class="text-xs text-amber-300 mt-1">อนุมัติ (80%): 0.00 ฿</p>
+        <p id="ldCardApprovedTitle" class="text-xs text-amber-300 font-semibold">คชจ.หน้างานที่อนุมัติ (80%)</p>
+        <h3 id="ldCardApprovedMain" class="text-xl font-bold text-white mt-1">0.00 ฿</h3>
+        <p id="ldCardPlanSub" class="text-xs text-purple-300 mt-1">แผน 100%: 0.00 ฿</p>
       </div>
       <div class="purple-card rounded-2xl p-4">
         <p class="text-xs text-purple-300">จ่ายจริง คชจ.หน้างานใน SAP</p>
@@ -427,55 +428,6 @@
           </thead>
           <tbody id="ldNetworkTableBody" class="divide-y divide-purple-800/50 text-purple-100"></tbody>
         </table>
-      </div>
-    </div>
-
-    <div class="no-print purple-card rounded-2xl p-5 space-y-4">
-      <div class="flex justify-between items-center border-b border-purple-800 pb-2">
-        <h3 class="text-sm font-bold text-amber-400">➕ ลงบันทึกรายการใหม่ในสมุดคุมงบ (WBS Ledger)</h3>
-        <span class="text-xs text-purple-300">บันทึกลงชีต "คุมงบWBS"</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div>
-          <label class="block text-xs text-amber-200 mb-1">วันที่เอกสาร</label>
-          <div class="flex gap-2">
-            <input type="text" id="ldInDate" placeholder="เช่น 26 / พฤศจิกายน / 2569" class="flex-1 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-            <button type="button" onclick="fillTodayDate('ldInDate')" class="px-2.5 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold">วันนี้</button>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs text-amber-200 mb-1">โครงข่าย (Network)</label>
-          <select id="ldInNetwork" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-            <option value="">-- ระบุ/เลือกโครงข่าย --</option>
-          </select>
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block text-xs text-amber-200 mb-1">รายการ / จุดประสงค์การขอใช้งบ</label>
-          <input type="text" id="ldInPurpose" placeholder="เช่น บันทึกขออนุมัติเบิกค่าแรงงาน งวดที่ 1" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs text-purple-300 mb-1">ค่าจ้างแรงงาน (53052020)</label>
-          <input type="number" step="0.01" id="ldInLabor" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs text-purple-300 mb-1">ค่าควบคุมงาน (53052040)</label>
-          <input type="number" step="0.01" id="ldInCtrl" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs text-purple-300 mb-1">ค่าขนส่ง (53069020)</label>
-          <input type="number" step="0.01" id="ldInTrans" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        </div>
-        <div>
-          <label class="block text-xs text-purple-300 mb-1">ค่าเบ็ดเตล็ด (53039990)</label>
-          <input type="number" step="0.01" id="ldInMisc" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-        <input type="text" id="ldInRequester" placeholder="ชื่อผู้ขอใช้งบ" class="sm:col-span-4 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        <input type="text" id="ldInNote" placeholder="หมายเหตุ / เลขที่หนังสืออ้างอิง / ฎีกา (ถ้ามี)" class="sm:col-span-5 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
-        <button onclick="addLedgerEntry()" id="btnAddLedger" class="sm:col-span-3 px-5 py-2 rounded-xl gold-gradient text-purple-950 font-bold text-sm shadow hover:opacity-95">
-          ➕ บันทึกลงสมุดคุมงบ
-        </button>
       </div>
     </div>
 
@@ -630,6 +582,7 @@
         wbsDictionary = res.wbsMap || {};
         ledgerRows = res.ledgerRows || [];
         populateWbsDatalist();
+        updatePreview();
         renderLedgerView();
       } catch (err) {
         alert("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + err.message);
@@ -800,44 +753,54 @@
       document.getElementById('pvF18').innerText = formatFlexDisplay(f18);
       document.getElementById('pvPctText').innerText = approvePct + "%";
 
-      const plnLabor = selectedData ? selectedData.plnLabor : 0, actLabor = selectedData ? selectedData.actLabor : 0;
-      const plnCtrl  = selectedData ? selectedData.plnCtrl  : 0, actCtrl  = selectedData ? selectedData.actCtrl  : 0;
-      const plnTrans = selectedData ? selectedData.plnTrans : 0, actTrans = selectedData ? selectedData.actTrans : 0;
-      const plnMisc  = selectedData ? selectedData.plnMisc  : 0, actMisc  = selectedData ? selectedData.actMisc  : 0;
+      // งบประมาณตามแผนจากชีต 48Form
+      const plnLabor = selectedData ? selectedData.plnLabor : 0;
+      const plnCtrl  = selectedData ? selectedData.plnCtrl  : 0;
+      const plnTrans = selectedData ? selectedData.plnTrans : 0;
+      const plnMisc  = selectedData ? selectedData.plnMisc  : 0;
 
-      const remLabor = plnLabor - actLabor;
-      const remCtrl  = plnCtrl  - actCtrl;
-      const remTrans = plnTrans - actTrans;
-      const remMisc  = plnMisc  - actMisc;
+      // ยอดเบิกจ่ายแล้วจากสมุดคุม (ชีต คุมงบWBS)
+      const matchedLedger = wbs
+        ? ledgerRows.filter(r => r.wbs === wbs && (!net || r.network === net))
+        : [];
+      const bookLabor = matchedLedger.reduce((s, r) => s + (r.labor || 0), 0);
+      const bookCtrl  = matchedLedger.reduce((s, r) => s + (r.ctrl  || 0), 0);
+      const bookTrans = matchedLedger.reduce((s, r) => s + (r.trans || 0), 0);
+      const bookMisc  = matchedLedger.reduce((s, r) => s + (r.misc  || 0), 0);
+
+      const remLabor = plnLabor - bookLabor;
+      const remCtrl  = plnCtrl  - bookCtrl;
+      const remTrans = plnTrans - bookTrans;
+      const remMisc  = plnMisc  - bookMisc;
 
       document.getElementById('tbPlnLabor').innerText = fmtMoney(plnLabor);
-      document.getElementById('tbActLabor').innerText = fmtMoney(actLabor);
+      document.getElementById('tbActLabor').innerText = fmtMoney(bookLabor);
       document.getElementById('tbRemLabor').innerText = fmtMoney(remLabor);
       document.getElementById('pvW25').innerText = formatFlexDisplay(w25);
 
       document.getElementById('tbPlnCtrl').innerText = fmtMoney(plnCtrl);
-      document.getElementById('tbActCtrl').innerText = fmtMoney(actCtrl);
+      document.getElementById('tbActCtrl').innerText = fmtMoney(bookCtrl);
       document.getElementById('tbRemCtrl').innerText = fmtMoney(remCtrl);
       document.getElementById('pvW28').innerText = formatFlexDisplay(w28);
 
       document.getElementById('tbPlnTrans').innerText = fmtMoney(plnTrans);
-      document.getElementById('tbActTrans').innerText = fmtMoney(actTrans);
+      document.getElementById('tbActTrans').innerText = fmtMoney(bookTrans);
       document.getElementById('tbRemTrans').innerText = fmtMoney(remTrans);
       document.getElementById('pvW31').innerText = formatFlexDisplay(w31);
 
       document.getElementById('tbPlnMisc').innerText = fmtMoney(plnMisc);
-      document.getElementById('tbActMisc').innerText = fmtMoney(actMisc);
+      document.getElementById('tbActMisc').innerText = fmtMoney(bookMisc);
       document.getElementById('tbRemMisc').innerText = fmtMoney(remMisc);
       document.getElementById('pvW34').innerText = formatFlexDisplay(w34);
 
-      const sumPln = plnLabor + plnCtrl + plnTrans + plnMisc;
-      const sumAct = actLabor + actCtrl + actTrans + actMisc;
-      const sumReq = parseNumOrZero(w25) + parseNumOrZero(w28) + parseNumOrZero(w31) + parseNumOrZero(w34);
+      const sumPln  = plnLabor + plnCtrl + plnTrans + plnMisc;
+      const sumBook = bookLabor + bookCtrl + bookTrans + bookMisc;
+      const sumReq  = parseNumOrZero(w25) + parseNumOrZero(w28) + parseNumOrZero(w31) + parseNumOrZero(w34);
 
       const appPln = sumPln * (approvePct / 100);
       document.getElementById('tbAppPln').innerText = fmtMoney(appPln);
-      document.getElementById('tbAppAct').innerText = fmtMoney(sumAct);
-      document.getElementById('tbAppRem').innerText = fmtMoney(appPln - sumAct);
+      document.getElementById('tbAppAct').innerText = fmtMoney(sumBook);
+      document.getElementById('tbAppRem').innerText = fmtMoney(appPln - sumBook);
       document.getElementById('tbAppReq').innerText = fmtMoney(sumReq);
     }
 
@@ -896,6 +859,7 @@
         document.getElementById('pvRequesterName').innerText = requester;
         if (res && res.ledgerRows) {
           ledgerRows = res.ledgerRows;
+          updatePreview();
           renderLedgerView();
         }
         closeRequesterModal();
@@ -920,28 +884,21 @@
     function handleLedgerWbsChange() {
       const wbs = document.getElementById('ledgerWbsInput').value.trim();
       const filterNet = document.getElementById('ledgerNetworkFilter');
-      const inNet = document.getElementById('ldInNetwork');
 
       let optsFilter = '<option value="">ทั้งหมด (ภาพรวมทั้ง WBS)</option>';
-      let optsIn = '<option value="">-- ไม่ระบุ / ระดับ WBS --</option>';
-
       if (wbsDictionary[wbs]) {
-        const netOpts = (wbsDictionary[wbs].networks || []).map(n => {
+        optsFilter += (wbsDictionary[wbs].networks || []).map(n => {
           const label = n.desc ? `${n.network} (${n.desc})` : n.network;
           return `<option value="${escapeHtml(n.network)}">${escapeHtml(label)}</option>`;
         }).join('');
-        optsFilter += netOpts;
-        optsIn += netOpts;
       }
 
       filterNet.innerHTML = optsFilter;
-      inNet.innerHTML = optsIn;
       renderLedgerView();
     }
 
     function filterByNetworkFromTable(net) {
       document.getElementById('ledgerNetworkFilter').value = net;
-      document.getElementById('ldInNetwork').value = net;
       renderLedgerView();
     }
 
@@ -992,8 +949,11 @@
       document.getElementById('ldUsagePctText').innerText = (sumApproved > 0 ? ((sumSapAct / sumApproved) * 100).toFixed(1) : "0.0") + "%";
       document.getElementById('ldProgressBar').style.width = usagePct + "%";
 
-      document.getElementById('ldCardPlan').innerText = fmtMoney(sumPlan) + " ฿";
-      document.getElementById('ldCardApproved').innerText = `อนุมัติ (${approvePct}%): ${fmtMoney(sumApproved)} ฿`;
+      // การ์ด 1 แสดงยอดอนุมัติ
+      document.getElementById('ldCardApprovedTitle').innerText = `คชจ.หน้างานที่อนุมัติ (${approvePct}%)`;
+      document.getElementById('ldCardApprovedMain').innerText = fmtMoney(sumApproved) + " ฿";
+      document.getElementById('ldCardPlanSub').innerText = `แผน 100%: ${fmtMoney(sumPlan)} ฿`;
+
       document.getElementById('ldCardSapAct').innerText = fmtMoney(sumSapAct) + " ฿";
       document.getElementById('ldCardSapRem').innerText = `คงเหลือ (เทียบอนุมัติ): ${fmtMoney(sapRem)} ฿`;
       document.getElementById('ldCardBookTotal').innerText = fmtMoney(bookTotal) + " ฿";
@@ -1145,56 +1105,13 @@
       }
     }
 
-    async function addLedgerEntry() {
-      const wbs = document.getElementById('ledgerWbsInput').value.trim();
-      if (!wbs) {
-        alert("กรุณาเลือกหมายเลขงาน WBS ก่อนบันทึกรายการครับ");
-        return;
-      }
-
-      const btn = document.getElementById('btnAddLedger');
-      btn.disabled = true;
-      btn.innerText = "⏳ กำลังบันทึก...";
-
-      const entry = {
-        docDate: document.getElementById('ldInDate').value.trim() || getTodayThaiStr(),
-        wbs: wbs,
-        network: document.getElementById('ldInNetwork').value,
-        desc: document.getElementById('ldWbsDesc').innerText,
-        purpose: document.getElementById('ldInPurpose').value.trim(),
-        labor: parseNumOrZero(document.getElementById('ldInLabor').value),
-        ctrl: parseNumOrZero(document.getElementById('ldInCtrl').value),
-        trans: parseNumOrZero(document.getElementById('ldInTrans').value),
-        misc: parseNumOrZero(document.getElementById('ldInMisc').value),
-        requester: document.getElementById('ldInRequester').value.trim(),
-        note: document.getElementById('ldInNote').value.trim()
-      };
-
-      try {
-        const res = await apiPost('saveLedgerEntry', { entry });
-        ledgerRows = (res && res.ledgerRows) ? res.ledgerRows : ledgerRows;
-        document.getElementById('ldInPurpose').value = "";
-        document.getElementById('ldInLabor').value = "";
-        document.getElementById('ldInCtrl').value = "";
-        document.getElementById('ldInTrans').value = "";
-        document.getElementById('ldInMisc').value = "";
-        document.getElementById('ldInRequester').value = "";
-        document.getElementById('ldInNote').value = "";
-        renderLedgerView();
-      } catch (err) {
-        alert("บันทึกไม่สำเร็จ: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "➕ บันทึกลงสมุดคุมงบ";
-      }
-    }
-
     async function removeLedgerEntry(id) {
       if (!id || !confirm("ต้องการลบรายการนี้ออกจากสมุดคุมงบ WBS ใช่หรือไม่?")) return;
       document.getElementById('loader').classList.remove('hidden');
       try {
         const res = await apiPost('deleteLedgerEntry', { id });
         ledgerRows = (res && res.ledgerRows) ? res.ledgerRows : ledgerRows.filter(r => r.id !== id);
+        updatePreview();
         renderLedgerView();
       } catch (err) {
         alert("ลบไม่สำเร็จ: " + err.message);
@@ -1216,7 +1133,6 @@
         handleLedgerWbsChange();
         if (network) {
           document.getElementById('ledgerNetworkFilter').value = network;
-          document.getElementById('ldInNetwork').value = network;
         }
       }
       renderLedgerView();
