@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบบริหารงบประมาณ & สมุดคุมงบ WBS - กฟจ.สกลนคร</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style id="printDynamicStyle">
+    @media print {
+      @page { size: A4 portrait; margin: 12mm 15mm; }
+    }
+  </style>
+  <style>
+    body { font-family: 'Sarabun', sans-serif; }
+    .gold-gradient { background: linear-gradient(135deg, #D4AF37 0%, #F59E0B 100%); }
+    .purple-card { background: rgba(36, 16, 66, 0.88); border: 1px solid rgba(212, 175, 55, 0.35); }
+
+    .pea-print-doc {
+      font-family: 'Sarabun', sans-serif;
+      color: #000;
+    }
+    .pea-print-doc table.pea-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .pea-print-doc table.pea-table th,
+    .pea-print-doc table.pea-table td {
+      border: 1px solid #000;
+    }
+
+    @media print {
+      html, body {
+        background: #fff !important;
+        color: #000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-family: 'Sarabun', sans-serif !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print { display: none !important; }
+      #tabForm, #tabDashboard, #tabLedger { display: none !important; }
+
+      body.printing-form #tabForm {
+        display: block !important;
+        padding: 0 !important; margin: 0 !important; max-width: 100% !important;
+      }
+      body.printing-form #printArea {
+        display: block !important;
+        width: 100% !important; max-width: 100% !important;
+        box-shadow: none !important; border: none !important; border-radius: 0 !important;
+        padding: 0 !important; margin: 0 !important;
+      }
+
+      body.printing-ledger #tabLedger {
+        display: block !important;
+        padding: 0 !important; margin: 0 !important; max-width: 100% !important;
+      }
+      body.printing-ledger #printLedgerArea {
+        display: block !important;
+        width: 100% !important; max-width: 100% !important;
+        box-shadow: none !important; border: none !important; border-radius: 0 !important;
+        padding: 0 !important; margin: 0 !important;
+      }
+
+      .avoid-break {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#140826] text-slate-100 min-h-screen printing-form">
+
+  <!-- Navbar -->
+  <nav class="no-print bg-[#1E0D38] border-b border-amber-500/30 sticky top-0 z-50 px-6 py-4 shadow-xl">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-lg sm:text-xl font-bold text-amber-400">ระบบบริหารงบประมาณและสมุดคุมงบ WBS</h1>
+        <p class="text-xs text-purple-300">การไฟฟ้าส่วนภูมิภาคจังหวัดสกลนคร | เชื่อมต่อชีต 48Form, Form & คุมงบWBS</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="switchTab('form')" id="btnTabForm" class="px-4 py-2 rounded-xl font-semibold text-sm gold-gradient text-purple-950 shadow">
+          📄 ใบรับรองการขอใช้งบประมาณ
+        </button>
+        <button onclick="switchTab('ledger')" id="btnTabLedger" class="px-4 py-2 rounded-xl font-semibold text-sm bg-purple-900/70 text-amber-300 border border-amber-500/30 hover:bg-purple-800">
+          📒 สมุดคุมงบ WBS
+        </button>
+        <button onclick="switchTab('dashboard')" id="btnTabDash" class="px-4 py-2 rounded-xl font-semibold text-sm bg-purple-900/70 text-amber-300 border border-amber-500/30 hover:bg-purple-800">
+          📊 แดชบอร์ดการจ่ายเงิน
+        </button>
+        <button onclick="loadData()" class="px-3 py-2 rounded-xl bg-purple-950 border border-purple-700 text-purple-200 hover:text-amber-400 text-sm" title="อัปเดตข้อมูลล่าสุด">
+          🔄
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Loading Overlay -->
+  <div id="loader" class="no-print fixed inset-0 bg-[#140826]/90 z-50 flex flex-col items-center justify-center px-4 text-center">
+    <div class="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-3"></div>
+    <p id="loaderText" class="text-amber-300 font-medium">กำลังโหลดข้อมูลจากชีต 48Form & คุมงบWBS...</p>
+  </div>
+
+  <!-- Datalist กลาง -->
+  <datalist id="wbsDatalist"></datalist>
+
+  <!-- ================= TAB 1: FORM & PRINT ================= -->
+  <main id="tabForm" class="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
+    <div class="no-print purple-card rounded-2xl p-6 space-y-5 shadow-2xl">
+      <div class="flex flex-wrap justify-between items-center gap-2 border-b border-amber-500/30 pb-3">
+        <h2 class="text-lg font-bold text-amber-400">กรอกข้อมูลสำหรับออกใบรับรองการขอใช้งบประมาณ</h2>
+        <span class="text-xs text-purple-300">ตัวเลขในตารางจะคำนวณให้อัตโนมัติตาม Network ที่เลือก</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-amber-300 mb-1">1. กรอกหรือเลือก หมายเลขงาน WBS (ช่อง F14)</label>
+          <input list="wbsDatalist" id="inputWbs" oninput="handleWbsInput()" placeholder="พิมพ์หรือเลือกหมายเลข WBS เช่น C-67-D-AANCM.0009.01.1" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-amber-300 mb-1">2. เลือก โครงข่าย / Network (ช่อง F16)</label>
+          <select id="selectNetwork" onchange="updatePreview()" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <option value="">-- กรุณากรอก WBS ก่อน --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <p class="text-xs font-semibold text-purple-300 mb-3">3. กรอกข้อมูลเพิ่มเติมด้วยตนเอง (รองรับทั้งข้อความ Text และตัวเลข Number)</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-amber-200 mb-1">วันที่</label>
+            <div class="flex gap-2">
+              <input type="text" id="inDocDate" oninput="updatePreview()" placeholder="เช่น 26 / พฤศจิกายน / 2569" class="flex-1 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+              <button type="button" onclick="fillTodayDate('inDocDate', updatePreview)" class="px-3 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold border border-amber-500/30 shrink-0">
+                📅 วันนี้
+              </button>
+            </div>
+          </div>
+          <div class="sm:col-span-1 lg:col-span-2">
+            <label class="block text-xs text-amber-200 mb-1">จุดประสงค์ (ช่อง F18)</label>
+            <input type="text" id="inF18" oninput="updatePreview()" placeholder="เช่น เพื่อซ่อมรถยนต์ หมายเลขทะเบียน XXX" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าจ้างแรงงาน (ช่อง W25)</label>
+            <input type="text" id="inW25" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าควบคุมงาน (ช่อง W28)</label>
+            <input type="text" id="inW28" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าขนส่ง (ช่อง W31)</label>
+            <input type="text" id="inW31" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-amber-200 mb-1">เบิกจ่ายครั้งนี้: ค่าเบ็ดเตล็ด (ช่อง W34)</label>
+            <input type="text" id="inW34" oninput="updatePreview()" placeholder="ระบุจำนวนเงิน หรือ ข้อความ" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-purple-300 mb-1">กิจกรรม (ระบุเพิ่มเติมถ้ามี)</label>
+            <input type="text" id="inActivity" oninput="updatePreview()" placeholder="ระบุรหัสกิจกรรม (ถ้ามี)" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-purple-300 mb-1">เปอร์เซ็นต์ คชจ.หน้างานอนุมัติ (%)</label>
+            <input type="number" id="inApprovePct" value="80" min="0" max="100" oninput="syncApprovePct('form')" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white focus:border-amber-400 focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-purple-800">
+        <button onclick="openCurrentWbsInLedger()" class="px-4 py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-purple-200 text-sm border border-purple-600">
+          📒 ดูสมุดคุมงบ WBS นี้
+        </button>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="saveForm()" id="btnSave" class="px-5 py-2.5 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 font-semibold border border-amber-500/40 shadow">
+            💾 บันทึกลงชีต Form & สมุดคุม
+          </button>
+          <button onclick="printSection('form')" class="px-6 py-2.5 rounded-xl gold-gradient text-purple-950 font-bold shadow-lg hover:opacity-95">
+            🖨️ พิมพ์ใบรับรองการขอใช้งบประมาณ (A4)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- A4 PRINT PREVIEW (FORM) -->
+    <div id="printArea" class="pea-print-doc bg-white text-black rounded-xl p-8 sm:p-10 shadow-2xl max-w-[210mm] mx-auto border border-slate-300">
+      <div class="flex justify-between items-start mb-4 gap-4">
+        <div>
+          <div class="text-lg font-bold text-black leading-tight">การไฟฟ้าส่วนภูมิภาค</div>
+          <div class="text-xs font-semibold text-black tracking-wider">PROVINCIAL ELECTRICITY AUTHORITY</div>
+        </div>
+        <div class="text-sm text-right shrink-0 pt-0.5">
+          <span>วันที่ </span>
+          <span id="pvDate">............ / .................... / ................</span>
+        </div>
+      </div>
+
+      <div class="text-center my-5">
+        <h2 class="text-xl font-bold tracking-wide">ใบรับรองการขอใช้งบประมาณ</h2>
+      </div>
+
+      <div class="space-y-2.5 text-[15px] mb-6">
+        <div class="flex items-baseline">
+          <span class="font-bold w-28 shrink-0">ชื่องาน</span>
+          <span class="flex-1 border-b border-dotted border-black pb-0.5 px-2 font-medium" id="pvDesc">-</span>
+        </div>
+        <div class="flex items-baseline">
+          <span class="font-bold w-28 shrink-0">หมายเลขงาน</span>
+          <span class="flex-1 border-b border-dotted border-black pb-0.5 px-2 font-medium" id="pvWbs">-</span>
+        </div>
+        <div class="flex items-baseline gap-4">
+          <div class="flex items-baseline flex-1">
+            <span class="font-bold w-28 shrink-0">โครงข่าย</span>
+            <span class="flex-1 border-b border-dotted border-black pb-0.5 px-2 font-medium" id="pvNetwork">-</span>
+          </div>
+          <div class="flex items-baseline flex-1">
+            <span class="font-bold w-20 shrink-0">กิจกรรม</span>
+            <span class="flex-1 border-b border-dotted border-black pb-0.5 px-2" id="pvActivity"></span>
+          </div>
+        </div>
+        <div class="flex items-baseline">
+          <span class="font-bold w-28 shrink-0">จุดประสงค์</span>
+          <span class="flex-1 border-b border-dotted border-black pb-0.5 px-2" id="pvF18"></span>
+        </div>
+      </div>
+
+      <table class="pea-table text-[14px]">
+        <thead>
+          <tr class="bg-slate-100 text-center font-bold">
+            <th class="py-2.5 px-2 w-[32%]">ค่าใช้จ่ายตามประมาณการ</th>
+            <th class="py-2.5 px-2 w-[17%]">จำนวนเงินงบประมาณ</th>
+            <th class="py-2.5 px-2 w-[17%]">จำนวนเงินเบิกจ่ายแล้ว</th>
+            <th class="py-2.5 px-2 w-[17%]">จำนวนเงินคงเหลือ</th>
+            <th class="py-2.5 px-2 w-[17%]">จำนวนเงินเบิกจ่ายครั้งนี้</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="py-2 px-3">ค่าจ้างแรงงาน 53052020</td>
+            <td class="py-2 px-2 text-right" id="tbPlnLabor">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbActLabor">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbRemLabor">0.00</td>
+            <td class="py-2 px-2 text-right font-medium" id="pvW25"></td>
+          </tr>
+          <tr>
+            <td class="py-2 px-3">ค่าควบคุมงาน 53052040</td>
+            <td class="py-2 px-2 text-right" id="tbPlnCtrl">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbActCtrl">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbRemCtrl">0.00</td>
+            <td class="py-2 px-2 text-right font-medium" id="pvW28"></td>
+          </tr>
+          <tr>
+            <td class="py-2 px-3">ค่าขนส่ง 53069020</td>
+            <td class="py-2 px-2 text-right" id="tbPlnTrans">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbActTrans">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbRemTrans">0.00</td>
+            <td class="py-2 px-2 text-right font-medium" id="pvW31"></td>
+          </tr>
+          <tr>
+            <td class="py-2 px-3">ค่าเบ็ดเตล็ด 53039990</td>
+            <td class="py-2 px-2 text-right" id="tbPlnMisc">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbActMisc">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbRemMisc">0.00</td>
+            <td class="py-2 px-2 text-right font-medium" id="pvW34"></td>
+          </tr>
+          <tr class="font-bold bg-slate-50">
+            <td class="py-2 px-3 text-center">รวม คชจ.หน้างาน เป็นเงิน</td>
+            <td class="py-2 px-2 text-right" id="tbSumPln">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbSumAct">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbSumRem">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbSumReq">0.00</td>
+          </tr>
+          <tr class="font-bold">
+            <td class="py-2 px-3 text-center">คชจ.หน้างานที่อนุมัติ</td>
+            <td class="py-2 px-2 text-right" id="tbAppPln">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbAppAct">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbAppRem">0.00</td>
+            <td class="py-2 px-2 text-right" id="tbAppReq">0.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="mt-3 text-[14px]">
+        % ค่าใช้จ่ายหน้างานที่ได้รับอนุมัติ เท่ากับ <span id="pvPctText" class="font-bold">80%</span>
+      </div>
+
+      <div class="avoid-break grid grid-cols-2 gap-8 mt-14 text-center text-[15px]">
+        <div class="space-y-2">
+          <div>ลงชื่อ ...................................................... (ผู้ขอเบิก)</div>
+          <div>( ...................................................... )</div>
+          <div>ตำแหน่ง ......................................................</div>
+        </div>
+        <div class="space-y-2">
+          <div>ลงชื่อ ...................................................... (ผู้รับรอง)</div>
+          <div>( ...................................................... )</div>
+          <div>ตำแหน่ง ......................................................</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= TAB 2: WBS BUDGET CONTROL BOOK (สมุดคุมงบ WBS) ================= -->
+  <main id="tabLedger" class="hidden max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <div class="no-print purple-card rounded-2xl p-6 space-y-4 shadow-2xl">
+      <div class="flex flex-wrap justify-between items-center gap-3 border-b border-amber-500/30 pb-3">
+        <div>
+          <h2 class="text-lg font-bold text-amber-400">📒 สมุดคุมงบหมายเลขงาน (WBS Budget Control Book)</h2>
+          <p class="text-xs text-purple-300">คุมวงเงินตามหมายเลขงาน WBS เทียบยอดจ่ายจริงใน SAP (`48Form`) และทะเบียนคุมรายครั้ง (`คุมงบWBS`)</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="jumpFromLedgerToForm()" class="px-4 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold border border-amber-500/40">
+            📄 ออกใบรับรองฯ ของงานนี้
+          </button>
+          <button onclick="printSection('ledger')" class="px-5 py-2 rounded-xl gold-gradient text-purple-950 text-sm font-bold shadow-lg hover:opacity-95">
+            🖨️ พิมพ์สมุดคุมงบ WBS (A4 แนวนอน)
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <div class="md:col-span-5">
+          <label class="block text-xs font-semibold text-amber-300 mb-1">1. เลือกหมายเลขงาน WBS ที่ต้องการคุมงบ</label>
+          <input list="wbsDatalist" id="ledgerWbsInput" oninput="handleLedgerWbsChange()" placeholder="พิมพ์หรือเลือกหมายเลขงาน WBS..." class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-semibold text-amber-300 mb-1">2. กรองโครงข่าย (Network)</label>
+          <select id="ledgerNetworkFilter" onchange="renderLedgerView()" class="w-full px-4 py-2.5 rounded-xl bg-[#140826] border border-amber-500/40 text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <option value="">ทั้งหมด (ภาพรวมทั้ง WBS)</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-amber-300 mb-1">3. ฐานคิดยอดตั้งต้น</label>
+          <select id="ledgerBaseMode" onchange="renderLedgerView()" class="w-full px-3 py-2.5 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+            <option value="approved">ยอดอนุมัติ (% คชจ.หน้างาน)</option>
+            <option value="plan">งบประมาณตามแผน 100%</option>
+            <option value="sap_rem">คงเหลือจาก SAP (Pln - Act)</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-amber-300 mb-1">% อนุมัติหน้างาน</label>
+          <input type="number" id="ledgerApprovePct" value="80" min="0" max="100" oninput="syncApprovePct('ledger')" class="w-full px-3 py-2.5 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+      </div>
+
+      <div class="bg-[#140826]/80 border border-purple-700/70 rounded-xl p-4 flex flex-col gap-3">
+        <div class="flex flex-wrap justify-between items-start gap-2">
+          <div>
+            <span class="text-xs text-purple-300">ชื่องาน:</span>
+            <h3 id="ldWbsDesc" class="text-base font-bold text-white">-</h3>
+            <p id="ldProjectBudgetSub" class="text-xs text-purple-300 mt-0.5">งบจัดสรร (Budget): 0.00 ฿ | ค่าพัสดุ (Pln/Act): 0.00 / 0.00 ฿</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="ldSysStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-purple-900 text-amber-300 border border-amber-500/30">สถานะ: -</span>
+            <span id="ldNetCountBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-900/70 text-purple-200 border border-purple-600">0 โครงข่าย</span>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-purple-300">สัดส่วนการเบิกจ่ายจริง คชจ.หน้างานใน SAP เทียบยอดอนุมัติ (<span id="ldPctLabel">80%</span>)</span>
+            <span id="ldUsagePctText" class="font-bold text-amber-300">0.0%</span>
+          </div>
+          <div class="w-full h-2.5 bg-purple-950 rounded-full overflow-hidden border border-purple-800">
+            <div id="ldProgressBar" class="h-full gold-gradient transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="purple-card rounded-2xl p-4">
+        <p class="text-xs text-purple-300">งบประมาณ คชจ.หน้างาน (100%)</p>
+        <h3 id="ldCardPlan" class="text-xl font-bold text-white mt-1">0.00 ฿</h3>
+        <p id="ldCardApproved" class="text-xs text-amber-300 mt-1">อนุมัติ (80%): 0.00 ฿</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4">
+        <p class="text-xs text-purple-300">จ่ายจริง คชจ.หน้างานใน SAP</p>
+        <h3 id="ldCardSapAct" class="text-xl font-bold text-amber-400 mt-1">0.00 ฿</h3>
+        <p id="ldCardSapRem" class="text-xs text-emerald-300 mt-1">คงเหลือใน SAP: 0.00 ฿</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4">
+        <p class="text-xs text-purple-300">รวมรายการในสมุดคุม (คุมงบWBS)</p>
+        <h3 id="ldCardBookTotal" class="text-xl font-bold text-sky-300 mt-1">0.00 ฿</h3>
+        <p id="ldCardBookCount" class="text-xs text-purple-300 mt-1">ทั้งหมด 0 รายการ</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4 border-amber-400/60 bg-[#2C1252]/90">
+        <p class="text-xs text-amber-300 font-semibold">คงเหลือสุทธิในสมุดคุมงบ</p>
+        <h3 id="ldCardNetRem" class="text-xl font-bold text-emerald-400 mt-1">0.00 ฿</h3>
+        <p id="ldCardBaseNote" class="text-xs text-purple-200 mt-1">คำนวณจากยอดอนุมัติ</p>
+      </div>
+    </div>
+
+    <div class="no-print purple-card rounded-2xl p-5">
+      <h3 class="text-sm font-bold text-amber-400 mb-3">รายละเอียดงบประมาณแยกตามโครงข่าย (Network) ของงานนี้</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="border-b border-amber-500/30 text-amber-300 whitespace-nowrap">
+              <th class="py-2.5 px-3">โครงข่าย (Network)</th>
+              <th class="py-2.5 px-3">คำอธิบายโครงข่าย</th>
+              <th class="py-2.5 px-3 text-right">แผน คชจ.หน้างาน</th>
+              <th class="py-2.5 px-3 text-right">จ่ายจริง SAP</th>
+              <th class="py-2.5 px-3 text-right">คงเหลือ SAP</th>
+              <th class="py-2.5 px-3 text-right">บันทึกในสมุดคุม</th>
+              <th class="py-2.5 px-3 text-center">เลือกดู</th>
+            </tr>
+          </thead>
+          <tbody id="ldNetworkTableBody" class="divide-y divide-purple-800/50 text-purple-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="no-print purple-card rounded-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-purple-800 pb-2">
+        <h3 class="text-sm font-bold text-amber-400">➕ ลงบันทึกรายการใหม่ในสมุดคุมงบ (WBS Ledger)</h3>
+        <span class="text-xs text-purple-300">บันทึกลงชีต "คุมงบWBS"</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-xs text-amber-200 mb-1">วันที่เอกสาร</label>
+          <div class="flex gap-2">
+            <input type="text" id="ldInDate" placeholder="เช่น 26 / พฤศจิกายน / 2569" class="flex-1 px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+            <button type="button" onclick="fillTodayDate('ldInDate')" class="px-2.5 py-2 rounded-xl bg-purple-800 hover:bg-purple-700 text-amber-300 text-xs font-semibold">วันนี้</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-amber-200 mb-1">โครงข่าย (Network)</label>
+          <select id="ldInNetwork" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+            <option value="">-- ระบุ/เลือกโครงข่าย --</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs text-amber-200 mb-1">รายการ / จุดประสงค์การขอใช้งบ</label>
+          <input type="text" id="ldInPurpose" placeholder="เช่น บันทึกขออนุมัติเบิกค่าแรงงาน งวดที่ 1" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs text-purple-300 mb-1">ค่าจ้างแรงงาน (53052020)</label>
+          <input type="number" step="0.01" id="ldInLabor" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs text-purple-300 mb-1">ค่าควบคุมงาน (53052040)</label>
+          <input type="number" step="0.01" id="ldInCtrl" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs text-purple-300 mb-1">ค่าขนส่ง (53069020)</label>
+          <input type="number" step="0.01" id="ldInTrans" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs text-purple-300 mb-1">ค่าเบ็ดเตล็ด (53039990)</label>
+          <input type="number" step="0.01" id="ldInMisc" placeholder="0.00" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        </div>
+      </div>
+      <div class="flex flex-wrap justify-between items-center gap-3">
+        <input type="text" id="ldInNote" placeholder="หมายเหตุ / เลขที่หนังสืออ้างอิง / ฎีกา (ถ้ามี)" class="flex-1 min-w-[240px] px-3 py-2 rounded-xl bg-[#140826] border border-purple-600 text-sm text-white">
+        <button onclick="addLedgerEntry()" id="btnAddLedger" class="px-5 py-2 rounded-xl gold-gradient text-purple-950 font-bold text-sm shadow hover:opacity-95">
+          ➕ บันทึกลงสมุดคุมงบ
+        </button>
+      </div>
+    </div>
+
+    <!-- PRINTABLE A4 LANDSCAPE LEDGER -->
+    <div id="printLedgerArea" class="pea-print-doc bg-white text-black rounded-xl p-6 sm:p-8 shadow-2xl border border-slate-300 overflow-x-auto">
+      <div class="flex justify-between items-start mb-3 gap-4">
+        <div>
+          <div class="text-base font-bold leading-tight">การไฟฟ้าส่วนภูมิภาคจังหวัดสกลนคร</div>
+          <div class="text-xs font-semibold tracking-wider">สมุดคุมงบประมาณตามหมายเลขงาน (WBS BUDGET CONTROL BOOK)</div>
+        </div>
+        <div class="text-xs text-right">
+          <div>พิมพ์วันที่: <span id="ldPrintDate">-</span></div>
+          <div>ฐานคำนวณ: <span id="ldPrintBaseText" class="font-bold">-</span></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs border border-black p-2.5 mb-4 bg-slate-50">
+        <div><span class="font-bold">หมายเลขงาน (WBS):</span> <span id="ldPvWbs">-</span></div>
+        <div class="md:col-span-2"><span class="font-bold">ชื่องาน:</span> <span id="ldPvDesc">-</span></div>
+        <div><span class="font-bold">โครงข่ายที่แสดง:</span> <span id="ldPvNet">ทั้งหมด</span></div>
+        <div><span class="font-bold">แผน คชจ.หน้างาน (100%):</span> <span id="ldPvPlan">0.00</span> บาท</div>
+        <div><span class="font-bold">จ่ายจริงใน SAP:</span> <span id="ldPvSapAct">0.00</span> บาท (คงเหลือ SAP: <span id="ldPvSapRem">0.00</span>)</div>
+      </div>
+
+      <table class="pea-table text-[12px]">
+        <thead>
+          <tr class="bg-slate-100 text-center font-bold">
+            <th class="py-2 px-1.5 w-[4%]">ที่</th>
+            <th class="py-2 px-1.5 w-[10%]">วันที่</th>
+            <th class="py-2 px-1.5 w-[9%]">โครงข่าย</th>
+            <th class="py-2 px-2 w-[23%]">รายการ / จุดประสงค์</th>
+            <th class="py-2 px-1.5 w-[9%]">ค่าแรง</th>
+            <th class="py-2 px-1.5 w-[9%]">ควบคุมงาน</th>
+            <th class="py-2 px-1.5 w-[8%]">ขนส่ง</th>
+            <th class="py-2 px-1.5 w-[8%]">เบ็ดเตล็ด</th>
+            <th class="py-2 px-1.5 w-[10%]">รวมขอเบิก</th>
+            <th class="py-2 px-1.5 w-[10%]">งบคงเหลือ</th>
+            <th class="no-print py-2 px-1.5 w-[5%]">ลบ</th>
+          </tr>
+        </thead>
+        <tbody id="ldLedgerBody"></tbody>
+        <tfoot id="ldLedgerFoot" class="font-bold bg-slate-100"></tfoot>
+      </table>
+
+      <div class="avoid-break grid grid-cols-2 gap-8 mt-10 text-center text-xs">
+        <div class="space-y-1.5">
+          <div>ลงชื่อ .................................................... (ผู้จัดทำ/ผู้คุมงบ)</div>
+          <div>( .................................................... )</div>
+          <div>วันที่ ......... / ................... / .............</div>
+        </div>
+        <div class="space-y-1.5">
+          <div>ลงชื่อ .................................................... (ผู้ตรวจสอบ)</div>
+          <div>( .................................................... )</div>
+          <div>วันที่ ......... / ................... / .............</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ประวัติรายการล่าสุดทุก WBS -->
+    <div class="no-print purple-card rounded-2xl p-5">
+      <h3 class="text-sm font-bold text-amber-400 mb-3">🕒 ประวัติรายการล่าสุดในสมุดคุมงบ (ทุกหมายเลขงาน WBS)</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="border-b border-amber-500/30 text-amber-300 whitespace-nowrap">
+              <th class="py-2 px-3">วันที่เอกสาร</th>
+              <th class="py-2 px-3">หมายเลขงาน WBS</th>
+              <th class="py-2 px-3">โครงข่าย</th>
+              <th class="py-2 px-3">รายการ / จุดประสงค์</th>
+              <th class="py-2 px-3 text-right">รวมขอเบิก (บาท)</th>
+              <th class="py-2 px-3 text-center">ที่มา</th>
+              <th class="py-2 px-3 text-center">เปิดดู</th>
+            </tr>
+          </thead>
+          <tbody id="ldRecentAllBody" class="divide-y divide-purple-800/50 text-purple-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= TAB 3: DASHBOARD ================= -->
+  <main id="tabDashboard" class="hidden no-print max-w-7xl mx-auto p-6 space-y-6">
+    <div class="purple-card rounded-2xl p-4 flex flex-wrap gap-4 items-end">
+      <div class="flex-1 min-w-[220px]">
+        <label class="block text-xs text-amber-300 mb-1">ค้นหา WBS / ชื่องาน</label>
+        <input type="text" id="dashSearch" oninput="applyDashFilter()" placeholder="พิมพ์รหัส WBS หรือชื่องาน..." class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-700 text-sm text-white">
+      </div>
+      <div class="w-44">
+        <label class="block text-xs text-amber-300 mb-1">สถานะระบบ</label>
+        <select id="dashStatusFilter" onchange="applyDashFilter()" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-700 text-sm text-white">
+          <option value="">ทั้งหมด</option>
+          <option value="CLSD">CLSD</option>
+          <option value="TECO">TECO</option>
+          <option value="REL">REL</option>
+        </select>
+      </div>
+      <div class="w-44">
+        <label class="block text-xs text-amber-300 mb-1">% คชจ.ที่อนุมัติ (การ์ด 5)</label>
+        <input type="number" id="dashApprovePct" value="80" min="0" max="100" oninput="syncApprovePct('dash')" class="w-full px-3 py-2 rounded-xl bg-[#140826] border border-purple-700 text-sm text-white">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="purple-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <p class="text-xs font-semibold text-amber-300">1. ค่าจ้างแรงงาน คงเหลือ</p>
+          <h2 id="kpiRemLabor" class="text-xl font-bold text-emerald-400 mt-1.5">0.00 ฿</h2>
+        </div>
+        <p id="subLabor" class="text-[11px] text-purple-300 mt-2">Pln: 0.00 | Act: 0.00</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <p class="text-xs font-semibold text-amber-300">2. ค่าควบคุมงาน คงเหลือ</p>
+          <h2 id="kpiRemCtrl" class="text-xl font-bold text-emerald-400 mt-1.5">0.00 ฿</h2>
+        </div>
+        <p id="subCtrl" class="text-[11px] text-purple-300 mt-2">Pln: 0.00 | Act: 0.00</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <p class="text-xs font-semibold text-amber-300">3. ค่าขนส่ง คงเหลือ</p>
+          <h2 id="kpiRemTrans" class="text-xl font-bold text-emerald-400 mt-1.5">0.00 ฿</h2>
+        </div>
+        <p id="subTrans" class="text-[11px] text-purple-300 mt-2">Pln: 0.00 | Act: 0.00</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <p class="text-xs font-semibold text-amber-300">4. ค่าเบ็ดเตล็ด คงเหลือ</p>
+          <h2 id="kpiRemMisc" class="text-xl font-bold text-emerald-400 mt-1.5">0.00 ฿</h2>
+        </div>
+        <p id="subMisc" class="text-[11px] text-purple-300 mt-2">Pln: 0.00 | Act: 0.00</p>
+      </div>
+      <div class="purple-card rounded-2xl p-4 flex flex-col justify-between border-amber-400/60 bg-[#2C1252]/90">
+        <div>
+          <p class="text-xs font-semibold text-amber-400">5. ค่าใช้จ่ายหน้างาน คงเหลือ</p>
+          <h2 id="kpiRemSite" class="text-xl font-bold text-amber-300 mt-1.5">0.00 ฿</h2>
+        </div>
+        <p id="subSite" class="text-[11px] text-purple-200 mt-2">อนุมัติ (80%): 0.00 | Act: 0.00</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="purple-card rounded-2xl p-5 lg:col-span-2">
+        <h3 class="text-sm font-bold text-amber-400 mb-4">เปรียบเทียบแผน (Pln.) vs ยอดจ่ายจริง (Act.) รายหมวด</h3>
+        <canvas id="barChart" height="120"></canvas>
+      </div>
+      <div class="purple-card rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-amber-400 mb-4">สัดส่วนยอดจ่ายเงินตามสถานะ</h3>
+        <canvas id="donutChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="purple-card rounded-2xl p-5 overflow-hidden">
+      <h3 class="text-sm font-bold text-amber-400 mb-4">รายการคงเหลือราย WBS / Network</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="border-b border-amber-500/30 text-amber-300 text-xs whitespace-nowrap">
+              <th class="py-3 px-3">WBS</th>
+              <th class="py-3 px-3">Network</th>
+              <th class="py-3 px-3">คำอธิบาย</th>
+              <th class="py-3 px-3 text-right">ค่าจ้างแรงงาน คงเหลือ</th>
+              <th class="py-3 px-3 text-right">ค่าควบคุมงาน คงเหลือ</th>
+              <th class="py-3 px-3 text-right">ค่าขนส่ง คงเหลือ</th>
+              <th class="py-3 px-3 text-right">ค่าเบ็ดเตล็ด คงเหลือ</th>
+              <th class="py-3 px-3 text-center">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="dashTableBody" class="divide-y divide-purple-800/50 text-purple-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ⚠️ นำ Web App URL ที่ได้จากการ Deploy Google Apps Script (ลงท้ายด้วย /exec) มาวางที่นี่
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyJNZoRi4iJysbRl-5voqOmxhsxt1WdRbT6DH8Fw1_h7epBatLDAf6QTzCIiNj7ZWuh/exec";
+
+    let allRecords = [];
+    let wbsDictionary = {};
+    let ledgerRows = [];
+    let barChartObj = null;
+    let donutChartObj = null;
+
+    window.onload = loadData;
+
+    function ensureApiConfigured() {
+      if (!GAS_API_URL || GAS_API_URL.includes("วาง_URL_WEB_APP")) {
+        throw new Error("กรุณานำ Web App URL จาก Google Apps Script มาวางในตัวแปร GAS_API_URL ก่อนใช้งาน");
+      }
+    }
+
+    async function apiGet(action) {
+      ensureApiConfigured();
+      const url = `${GAS_API_URL}?action=${encodeURIComponent(action)}&t=${Date.now()}`;
+      const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const json = await res.json();
+      if (json.status === 'error') throw new Error(json.message || 'Server Error');
+      return json.data;
+    }
+
+    async function apiPost(action, bodyData) {
+      ensureApiConfigured();
+      const res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, ...bodyData })
+      });
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const json = await res.json();
+      if (json.status === 'error') throw new Error(json.message || 'Server Error');
+      return json.data;
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getTodayThaiStr() {
+      const now = new Date();
+      const thaiMonths = [
+        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+      ];
+      return `${now.getDate()} / ${thaiMonths[now.getMonth()]} / ${now.getFullYear() + 543}`;
+    }
+
+    function fillTodayDate(targetId, cb) {
+      document.getElementById(targetId).value = getTodayThaiStr();
+      if (typeof cb === 'function') cb();
+    }
+
+    async function loadData() {
+      document.getElementById('loader').classList.remove('hidden');
+      try {
+        const res = await apiGet('getInitialData');
+        allRecords = res.records || [];
+        wbsDictionary = res.wbsMap || {};
+        ledgerRows = res.ledgerRows || [];
+        populateWbsDatalist();
+        applyDashFilter();
+        renderLedgerView();
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + err.message);
+      } finally {
+        document.getElementById('loader').classList.add('hidden');
+      }
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tabForm').classList.toggle('hidden', tab !== 'form');
+      document.getElementById('tabLedger').classList.toggle('hidden', tab !== 'ledger');
+      document.getElementById('tabDashboard').classList.toggle('hidden', tab !== 'dashboard');
+
+      const activeCls = "px-4 py-2 rounded-xl font-semibold text-sm gold-gradient text-purple-950 shadow";
+      const idleCls = "px-4 py-2 rounded-xl font-semibold text-sm bg-purple-900/70 text-amber-300 border border-amber-500/30 hover:bg-purple-800";
+
+      document.getElementById('btnTabForm').className = tab === 'form' ? activeCls : idleCls;
+      document.getElementById('btnTabLedger').className = tab === 'ledger' ? activeCls : idleCls;
+      document.getElementById('btnTabDash').className = tab === 'dashboard' ? activeCls : idleCls;
+
+      if (tab === 'ledger') renderLedgerView();
+    }
+
+    function printSection(mode) {
+      const styleEl = document.getElementById('printDynamicStyle');
+      if (mode === 'ledger') {
+        document.body.classList.remove('printing-form');
+        document.body.classList.add('printing-ledger');
+        styleEl.innerHTML = '@media print { @page { size: A4 landscape; margin: 10mm 12mm; } }';
+        document.getElementById('ldPrintDate').innerText = getTodayThaiStr();
+      } else {
+        document.body.classList.remove('printing-ledger');
+        document.body.classList.add('printing-form');
+        styleEl.innerHTML = '@media print { @page { size: A4 portrait; margin: 12mm 15mm; } }';
+      }
+      setTimeout(() => window.print(), 80);
+    }
+
+    function syncApprovePct(source) {
+      const f = document.getElementById('inApprovePct');
+      const l = document.getElementById('ledgerApprovePct');
+      const d = document.getElementById('dashApprovePct');
+      const val = source === 'form' ? f.value : (source === 'ledger' ? l.value : d.value);
+      f.value = val; l.value = val; d.value = val;
+      updatePreview();
+      applyDashFilter();
+      renderLedgerView();
+    }
+
+    function populateWbsDatalist() {
+      const dl = document.getElementById('wbsDatalist');
+      dl.innerHTML = Object.keys(wbsDictionary).map(w =>
+        `<option value="${escapeHtml(w)}">${escapeHtml(wbsDictionary[w].mainDesc)}</option>`
+      ).join('');
+    }
+
+    const fmtMoney = (n) => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function formatFlexDisplay(val) {
+      if (!val || String(val).trim() === "") return "";
+      const clean = String(val).replace(/,/g, "");
+      if (!isNaN(clean)) {
+        return Number(clean).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return val;
+    }
+
+    function parseNumOrZero(val) {
+      const clean = String(val || "").replace(/,/g, "");
+      const num = parseFloat(clean);
+      return (!isNaN(num) && clean.trim() !== "") ? num : 0;
+    }
+
+    function getWbsBudgetObj(wbs, netFilter) {
+      const empty = {
+        budget: 0, plnMat: 0, actMat: 0,
+        plnLabor: 0, actLabor: 0, plnCtrl: 0, actCtrl: 0,
+        plnTrans: 0, actTrans: 0, plnMisc: 0, actMisc: 0,
+        sysStatus: "-"
+      };
+      if (!wbsDictionary[wbs]) return empty;
+      const entry = wbsDictionary[wbs];
+
+      if (netFilter) {
+        const found = (entry.networks || []).find(n => n.network === netFilter);
+        return found || empty;
+      }
+      if (entry.mainData) return entry.mainData;
+
+      return (entry.networks || []).reduce((acc, n) => {
+        acc.budget   += n.budget   || 0;
+        acc.plnMat   += n.plnMat   || 0; acc.actMat   += n.actMat   || 0;
+        acc.plnLabor += n.plnLabor || 0; acc.actLabor += n.actLabor || 0;
+        acc.plnCtrl  += n.plnCtrl  || 0; acc.actCtrl  += n.actCtrl  || 0;
+        acc.plnTrans += n.plnTrans || 0; acc.actTrans += n.actTrans || 0;
+        acc.plnMisc  += n.plnMisc  || 0; acc.actMisc  += n.actMisc  || 0;
+        if (acc.sysStatus === "-" && n.sysStatus) acc.sysStatus = n.sysStatus;
+        return acc;
+      }, { ...empty, budget: entry.budget || 0 });
+    }
+
+    // ================= TAB 1 LOGIC =================
+    function handleWbsInput() {
+      const wbsVal = document.getElementById('inputWbs').value.trim();
+      const netSelect = document.getElementById('selectNetwork');
+      let opts = '<option value="">-- เลือก Network --</option>';
+
+      if (wbsDictionary[wbsVal]) {
+        opts += wbsDictionary[wbsVal].networks.map(n => {
+          const label = n.desc ? `${n.network} (${n.desc})` : n.network;
+          return `<option value="${escapeHtml(n.network)}">${escapeHtml(label)}</option>`;
+        }).join('');
+      }
+      netSelect.innerHTML = opts;
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const wbs = document.getElementById('inputWbs').value.trim();
+      const net = document.getElementById('selectNetwork').value;
+      const docDate = document.getElementById('inDocDate').value.trim();
+      const f18 = document.getElementById('inF18').value;
+      const w25 = document.getElementById('inW25').value;
+      const w28 = document.getElementById('inW28').value;
+      const w31 = document.getElementById('inW31').value;
+      const w34 = document.getElementById('inW34').value;
+      const actText = document.getElementById('inActivity').value;
+      const rawPct = parseFloat(document.getElementById('inApprovePct').value);
+      const approvePct = isNaN(rawPct) ? 80 : rawPct;
+
+      const pvDateEl = document.getElementById('pvDate');
+      if (docDate) {
+        pvDateEl.innerText = docDate;
+        pvDateEl.className = "border-b border-dotted border-black pb-0.5 px-2 inline-block min-w-[140px] text-center font-medium";
+      } else {
+        pvDateEl.innerText = "............ / .................... / ................";
+        pvDateEl.className = "";
+      }
+
+      let desc = "-";
+      let selectedData = null;
+
+      if (wbsDictionary[wbs]) {
+        desc = wbsDictionary[wbs].mainDesc || "-";
+        selectedData = getWbsBudgetObj(wbs, net);
+        if (net) {
+          const foundNet = wbsDictionary[wbs].networks.find(n => n.network === net);
+          if (foundNet && foundNet.desc) desc += ` (${foundNet.desc})`;
+        }
+      }
+
+      document.getElementById('pvDesc').innerText = desc;
+      document.getElementById('pvWbs').innerText = wbs || "-";
+      document.getElementById('pvNetwork').innerText = net || "-";
+      document.getElementById('pvActivity').innerText = actText;
+      document.getElementById('pvF18').innerText = formatFlexDisplay(f18);
+      document.getElementById('pvPctText').innerText = approvePct + "%";
+
+      const plnLabor = selectedData ? selectedData.plnLabor : 0, actLabor = selectedData ? selectedData.actLabor : 0;
+      const plnCtrl  = selectedData ? selectedData.plnCtrl  : 0, actCtrl  = selectedData ? selectedData.actCtrl  : 0;
+      const plnTrans = selectedData ? selectedData.plnTrans : 0, actTrans = selectedData ? selectedData.actTrans : 0;
+      const plnMisc  = selectedData ? selectedData.plnMisc  : 0, actMisc  = selectedData ? selectedData.actMisc  : 0;
+
+      const remLabor = plnLabor - actLabor;
+      const remCtrl  = plnCtrl  - actCtrl;
+      const remTrans = plnTrans - actTrans;
+      const remMisc  = plnMisc  - actMisc;
+
+      document.getElementById('tbPlnLabor').innerText = fmtMoney(plnLabor);
+      document.getElementById('tbActLabor').innerText = fmtMoney(actLabor);
+      document.getElementById('tbRemLabor').innerText = fmtMoney(remLabor);
+      document.getElementById('pvW25').innerText = formatFlexDisplay(w25);
+
+      document.getElementById('tbPlnCtrl').innerText = fmtMoney(plnCtrl);
+      document.getElementById('tbActCtrl').innerText = fmtMoney(actCtrl);
+      document.getElementById('tbRemCtrl').innerText = fmtMoney(remCtrl);
+      document.getElementById('pvW28').innerText = formatFlexDisplay(w28);
+
+      document.getElementById('tbPlnTrans').innerText = fmtMoney(plnTrans);
+      document.getElementById('tbActTrans').innerText = fmtMoney(actTrans);
+      document.getElementById('tbRemTrans').innerText = fmtMoney(remTrans);
+      document.getElementById('pvW31').innerText = formatFlexDisplay(w31);
+
+      document.getElementById('tbPlnMisc').innerText = fmtMoney(plnMisc);
+      document.getElementById('tbActMisc').innerText = fmtMoney(actMisc);
+      document.getElementById('tbRemMisc').innerText = fmtMoney(remMisc);
+      document.getElementById('pvW34').innerText = formatFlexDisplay(w34);
+
+      const sumPln = plnLabor + plnCtrl + plnTrans + plnMisc;
+      const sumAct = actLabor + actCtrl + actTrans + actMisc;
+      const sumRem = remLabor + remCtrl + remTrans + remMisc;
+      const sumReq = parseNumOrZero(w25) + parseNumOrZero(w28) + parseNumOrZero(w31) + parseNumOrZero(w34);
+
+      document.getElementById('tbSumPln').innerText = fmtMoney(sumPln);
+      document.getElementById('tbSumAct').innerText = fmtMoney(sumAct);
+      document.getElementById('tbSumRem').innerText = fmtMoney(sumRem);
+      document.getElementById('tbSumReq').innerText = fmtMoney(sumReq);
+
+      const appPln = sumPln * (approvePct / 100);
+      document.getElementById('tbAppPln').innerText = fmtMoney(appPln);
+      document.getElementById('tbAppAct').innerText = fmtMoney(sumAct);
+      document.getElementById('tbAppRem').innerText = fmtMoney(appPln - sumAct);
+      document.getElementById('tbAppReq').innerText = fmtMoney(sumReq);
+    }
+
+    async function saveForm() {
+      const wbs = document.getElementById('inputWbs').value.trim();
+      if (!wbs) {
+        alert("กรุณากรอกหรือเลือก WBS ก่อนบันทึกครับ");
+        return;
+      }
+
+      const btn = document.getElementById('btnSave');
+      btn.disabled = true;
+      btn.innerText = "⏳ กำลังบันทึก...";
+
+      const payload = {
+        docDate: document.getElementById('inDocDate').value.trim() || getTodayThaiStr(),
+        activity: document.getElementById('inActivity').value.trim(),
+        desc: document.getElementById('pvDesc').innerText,
+        wbs: wbs,
+        network: document.getElementById('selectNetwork').value,
+        f18: document.getElementById('inF18').value,
+        w25: document.getElementById('inW25').value,
+        w28: document.getElementById('inW28').value,
+        w31: document.getElementById('inW31').value,
+        w34: document.getElementById('inW34').value
+      };
+
+      try {
+        const res = await apiPost('saveToFormSheet', { payload });
+        if (res && res.ledgerRows) {
+          ledgerRows = res.ledgerRows;
+          renderLedgerView();
+        }
+        alert((res && res.message) ? res.message : "บันทึกข้อมูลเรียบร้อยแล้ว!");
+      } catch (err) {
+        alert("บันทึกไม่สำเร็จ: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "💾 บันทึกลงชีต Form & สมุดคุม";
+      }
+    }
+
+    function openCurrentWbsInLedger() {
+      const wbs = document.getElementById('inputWbs').value.trim();
+      const net = document.getElementById('selectNetwork').value;
+      selectForLedger(wbs, net);
+    }
+
+    // ================= TAB 2: WBS LEDGER LOGIC =================
+    function handleLedgerWbsChange() {
+      const wbs = document.getElementById('ledgerWbsInput').value.trim();
+      const filterNet = document.getElementById('ledgerNetworkFilter');
+      const inNet = document.getElementById('ldInNetwork');
+
+      let optsFilter = '<option value="">ทั้งหมด (ภาพรวมทั้ง WBS)</option>';
+      let optsIn = '<option value="">-- ไม่ระบุ / ระดับ WBS --</option>';
+
+      if (wbsDictionary[wbs]) {
+        const netOpts = (wbsDictionary[wbs].networks || []).map(n => {
+          const label = n.desc ? `${n.network} (${n.desc})` : n.network;
+          return `<option value="${escapeHtml(n.network)}">${escapeHtml(label)}</option>`;
+        }).join('');
+        optsFilter += netOpts;
+        optsIn += netOpts;
+      }
+
+      filterNet.innerHTML = optsFilter;
+      inNet.innerHTML = optsIn;
+      renderLedgerView();
+    }
+
+    function filterByNetworkFromTable(net) {
+      document.getElementById('ledgerNetworkFilter').value = net;
+      document.getElementById('ldInNetwork').value = net;
+      renderLedgerView();
+    }
+
+    function renderLedgerView() {
+      const wbs = document.getElementById('ledgerWbsInput').value.trim();
+      const net = document.getElementById('ledgerNetworkFilter').value;
+      const baseMode = document.getElementById('ledgerBaseMode').value;
+      const rawPct = parseFloat(document.getElementById('ledgerApprovePct').value);
+      const approvePct = isNaN(rawPct) ? 80 : rawPct;
+
+      const wbsObj = wbsDictionary[wbs];
+      const budget = getWbsBudgetObj(wbs, net);
+
+      const sumPlan = (budget.plnLabor || 0) + (budget.plnCtrl || 0) + (budget.plnTrans || 0) + (budget.plnMisc || 0);
+      const sumSapAct = (budget.actLabor || 0) + (budget.actCtrl || 0) + (budget.actTrans || 0) + (budget.actMisc || 0);
+      const sumApproved = sumPlan * (approvePct / 100);
+      const sapRem = sumApproved - sumSapAct;
+
+      let startBudget = sumApproved;
+      let baseText = `ยอดอนุมัติ (${approvePct}% ของแผน)`;
+      if (baseMode === 'plan') {
+        startBudget = sumPlan;
+        baseText = 'งบประมาณตามแผน 100%';
+      } else if (baseMode === 'sap_rem') {
+        startBudget = sumPlan - sumSapAct;
+        baseText = 'งบคงเหลือจาก SAP (Pln - Act)';
+      }
+
+      const rows = ledgerRows.filter(r => {
+        if (!wbs) return false;
+        const matchWbs = r.wbs === wbs;
+        const matchNet = !net || r.network === net;
+        return matchWbs && matchNet;
+      });
+
+      const bookTotal = rows.reduce((s, r) => s + r.labor + r.ctrl + r.trans + r.misc, 0);
+      const netRemaining = startBudget - bookTotal;
+
+      document.getElementById('ldWbsDesc').innerText = wbsObj ? (wbsObj.mainDesc || wbs) : (wbs ? "ไม่พบข้อมูลในชีต 48Form" : "กรุณาเลือกหมายเลขงาน WBS");
+      document.getElementById('ldProjectBudgetSub').innerText =
+        `งบจัดสรร (Budget): ${fmtMoney(budget.budget)} ฿ | ค่าพัสดุ (Pln/Act): ${fmtMoney(budget.plnMat)} / ${fmtMoney(budget.actMat)} ฿`;
+
+      document.getElementById('ldSysStatusBadge').innerText = "สถานะ: " + (budget.sysStatus || "-");
+      document.getElementById('ldNetCountBadge').innerText = (wbsObj ? wbsObj.networks.length : 0) + " โครงข่าย";
+      document.getElementById('ldPctLabel').innerText = approvePct + "%";
+
+      const usagePct = sumApproved > 0 ? Math.min(Math.max((sumSapAct / sumApproved) * 100, 0), 100) : 0;
+      document.getElementById('ldUsagePctText').innerText = (sumApproved > 0 ? ((sumSapAct / sumApproved) * 100).toFixed(1) : "0.0") + "%";
+      document.getElementById('ldProgressBar').style.width = usagePct + "%";
+
+      document.getElementById('ldCardPlan').innerText = fmtMoney(sumPlan) + " ฿";
+      document.getElementById('ldCardApproved').innerText = `อนุมัติ (${approvePct}%): ${fmtMoney(sumApproved)} ฿`;
+      document.getElementById('ldCardSapAct').innerText = fmtMoney(sumSapAct) + " ฿";
+      document.getElementById('ldCardSapRem').innerText = `คงเหลือ (เทียบอนุมัติ): ${fmtMoney(sapRem)} ฿`;
+      document.getElementById('ldCardBookTotal').innerText = fmtMoney(bookTotal) + " ฿";
+      document.getElementById('ldCardBookCount').innerText = `ทั้งหมด ${rows.length} รายการ`;
+
+      const netRemEl = document.getElementById('ldCardNetRem');
+      netRemEl.innerText = fmtMoney(netRemaining) + " ฿";
+      netRemEl.className = "text-xl font-bold mt-1 " + (netRemaining < 0 ? "text-rose-400" : "text-emerald-400");
+      document.getElementById('ldCardBaseNote').innerText = "ฐาน: " + baseText;
+
+      const netTbody = document.getElementById('ldNetworkTableBody');
+      if (!wbsObj || wbsObj.networks.length === 0) {
+        netTbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-purple-400">ไม่มีข้อมูลโครงข่ายย่อย</td></tr>`;
+      } else {
+        netTbody.innerHTML = wbsObj.networks.map(n => {
+          const nPlan = (n.plnLabor || 0) + (n.plnCtrl || 0) + (n.plnTrans || 0) + (n.plnMisc || 0);
+          const nAct  = (n.actLabor || 0) + (n.actCtrl || 0) + (n.actTrans || 0) + (n.actMisc || 0);
+          const nRem  = nPlan - nAct;
+          const nBook = ledgerRows
+            .filter(r => r.wbs === wbs && r.network === n.network)
+            .reduce((s, r) => s + r.labor + r.ctrl + r.trans + r.misc, 0);
+          const isSelected = net === n.network;
+
+          return `
+            <tr class="${isSelected ? 'bg-amber-500/15' : 'hover:bg-purple-900/40'} transition">
+              <td class="py-2 px-3 font-semibold text-amber-300 whitespace-nowrap">${escapeHtml(n.network)}</td>
+              <td class="py-2 px-3">${escapeHtml(n.desc || "-")}</td>
+              <td class="py-2 px-3 text-right">${fmtMoney(nPlan)}</td>
+              <td class="py-2 px-3 text-right text-amber-200">${fmtMoney(nAct)}</td>
+              <td class="py-2 px-3 text-right ${nRem < 0 ? 'text-rose-400 font-semibold' : 'text-emerald-300'}">${fmtMoney(nRem)}</td>
+              <td class="py-2 px-3 text-right text-sky-300">${fmtMoney(nBook)}</td>
+              <td class="py-2 px-3 text-center">
+                <button data-net="${escapeHtml(n.network)}" onclick="filterByNetworkFromTable(this.dataset.net)" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${isSelected ? 'gold-gradient text-purple-950' : 'bg-purple-800 text-amber-300 hover:bg-purple-700'}">
+                  ${isSelected ? 'กำลังดู' : 'กรองดู'}
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('ldPrintBaseText').innerText = baseText;
+      document.getElementById('ldPvWbs').innerText = wbs || "-";
+      document.getElementById('ldPvDesc').innerText = wbsObj ? (wbsObj.mainDesc || "-") : "-";
+      document.getElementById('ldPvNet').innerText = net || "ทั้งหมด (ภาพรวมทั้ง WBS)";
+      document.getElementById('ldPvPlan').innerText = fmtMoney(sumPlan);
+      document.getElementById('ldPvSapAct').innerText = fmtMoney(sumSapAct);
+      document.getElementById('ldPvSapRem').innerText = fmtMoney(sumPlan - sumSapAct);
+
+      const tbody = document.getElementById('ldLedgerBody');
+      const tfoot = document.getElementById('ldLedgerFoot');
+
+      let runningBal = startBudget;
+      let sumL = 0, sumC = 0, sumT = 0, sumM = 0;
+
+      let htmlRows = `
+        <tr class="bg-slate-50 font-semibold">
+          <td class="py-1.5 px-2 text-center">-</td>
+          <td class="py-1.5 px-2 text-center">ยอดยกมา</td>
+          <td class="py-1.5 px-2 text-center">${escapeHtml(net || "ทั้งหมด")}</td>
+          <td class="py-1.5 px-2">งบประมาณตั้งต้น (${escapeHtml(baseText)})</td>
+          <td class="py-1.5 px-2 text-right">-</td>
+          <td class="py-1.5 px-2 text-right">-</td>
+          <td class="py-1.5 px-2 text-right">-</td>
+          <td class="py-1.5 px-2 text-right">-</td>
+          <td class="py-1.5 px-2 text-right">-</td>
+          <td class="py-1.5 px-2 text-right">${fmtMoney(runningBal)}</td>
+          <td class="no-print py-1.5 px-2"></td>
+        </tr>
+      `;
+
+      if (rows.length === 0) {
+        htmlRows += `
+          <tr>
+            <td colspan="11" class="py-6 text-center text-slate-500">
+              ${wbs ? "ยังไม่มีรายการบันทึกในสมุดคุมงบสำหรับงานนี้" : "กรุณาเลือกหมายเลขงาน WBS ด้านบนเพื่อแสดงสมุดคุมงบ"}
+            </td>
+          </tr>
+        `;
+      } else {
+        rows.forEach((r, idx) => {
+          const rowSum = r.labor + r.ctrl + r.trans + r.misc;
+          runningBal -= rowSum;
+          sumL += r.labor; sumC += r.ctrl; sumT += r.trans; sumM += r.misc;
+          const noteTxt = r.note ? ` <span class="text-[11px] text-slate-600">(${escapeHtml(r.note)})</span>` : "";
+
+          htmlRows += `
+            <tr>
+              <td class="py-1.5 px-1.5 text-center">${idx + 1}</td>
+              <td class="py-1.5 px-1.5 text-center whitespace-nowrap">${escapeHtml(r.docDate || "-")}</td>
+              <td class="py-1.5 px-1.5 text-center whitespace-nowrap">${escapeHtml(r.network || "-")}</td>
+              <td class="py-1.5 px-2">${escapeHtml(r.purpose || "-")}${noteTxt}</td>
+              <td class="py-1.5 px-1.5 text-right">${fmtMoney(r.labor)}</td>
+              <td class="py-1.5 px-1.5 text-right">${fmtMoney(r.ctrl)}</td>
+              <td class="py-1.5 px-1.5 text-right">${fmtMoney(r.trans)}</td>
+              <td class="py-1.5 px-1.5 text-right">${fmtMoney(r.misc)}</td>
+              <td class="py-1.5 px-1.5 text-right font-semibold">${fmtMoney(rowSum)}</td>
+              <td class="py-1.5 px-1.5 text-right font-semibold ${runningBal < 0 ? 'text-red-600' : ''}">${fmtMoney(runningBal)}</td>
+              <td class="no-print py-1.5 px-1.5 text-center">
+                <button data-id="${escapeHtml(r.id)}" onclick="removeLedgerEntry(this.dataset.id)" class="text-red-600 hover:underline text-xs font-bold" title="ลบรายการนี้">ลบ</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      tbody.innerHTML = htmlRows;
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="4" class="py-2 px-2 text-center">รวมยอดขอใช้งบประมาณในสมุดคุมงบทั้งสิ้น</td>
+          <td class="py-2 px-1.5 text-right">${fmtMoney(sumL)}</td>
+          <td class="py-2 px-1.5 text-right">${fmtMoney(sumC)}</td>
+          <td class="py-2 px-1.5 text-right">${fmtMoney(sumT)}</td>
+          <td class="py-2 px-1.5 text-right">${fmtMoney(sumM)}</td>
+          <td class="py-2 px-1.5 text-right">${fmtMoney(bookTotal)}</td>
+          <td class="py-2 px-1.5 text-right ${netRemaining < 0 ? 'text-red-600' : ''}">${fmtMoney(netRemaining)}</td>
+          <td class="no-print"></td>
+        </tr>
+      `;
+
+      const recentBody = document.getElementById('ldRecentAllBody');
+      if (ledgerRows.length === 0) {
+        recentBody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-purple-400">ยังไม่มีประวัติการบันทึกในชีต "คุมงบWBS"</td></tr>`;
+      } else {
+        const recent = [...ledgerRows].reverse().slice(0, 20);
+        recentBody.innerHTML = recent.map(r => {
+          const total = r.labor + r.ctrl + r.trans + r.misc;
+          return `
+            <tr class="hover:bg-purple-900/40 transition">
+              <td class="py-2 px-3 whitespace-nowrap">${escapeHtml(r.docDate || r.timestamp)}</td>
+              <td class="py-2 px-3 font-medium text-amber-300 whitespace-nowrap">${escapeHtml(r.wbs)}</td>
+              <td class="py-2 px-3 whitespace-nowrap">${escapeHtml(r.network || "-")}</td>
+              <td class="py-2 px-3">${escapeHtml(r.purpose || "-")}</td>
+              <td class="py-2 px-3 text-right font-semibold text-sky-300">${fmtMoney(total)}</td>
+              <td class="py-2 px-3 text-center text-xs text-purple-300">${escapeHtml(r.source || "-")}</td>
+              <td class="py-2 px-3 text-center">
+                <button data-wbs="${escapeHtml(r.wbs)}" data-net="${escapeHtml(r.network)}" onclick="selectForLedger(this.dataset.wbs, this.dataset.net)" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-purple-950 text-xs font-semibold">
+                  เปิดคุมงบ
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    async function addLedgerEntry() {
+      const wbs = document.getElementById('ledgerWbsInput').value.trim();
+      if (!wbs) {
+        alert("กรุณาเลือกหมายเลขงาน WBS ก่อนบันทึกรายการครับ");
+        return;
+      }
+
+      const btn = document.getElementById('btnAddLedger');
+      btn.disabled = true;
+      btn.innerText = "⏳ กำลังบันทึก...";
+
+      const entry = {
+        docDate: document.getElementById('ldInDate').value.trim() || getTodayThaiStr(),
+        wbs: wbs,
+        network: document.getElementById('ldInNetwork').value,
+        desc: document.getElementById('ldWbsDesc').innerText,
+        purpose: document.getElementById('ldInPurpose').value.trim(),
+        labor: parseNumOrZero(document.getElementById('ldInLabor').value),
+        ctrl: parseNumOrZero(document.getElementById('ldInCtrl').value),
+        trans: parseNumOrZero(document.getElementById('ldInTrans').value),
+        misc: parseNumOrZero(document.getElementById('ldInMisc').value),
+        note: document.getElementById('ldInNote').value.trim()
+      };
+
+      try {
+        const res = await apiPost('saveLedgerEntry', { entry });
+        ledgerRows = (res && res.ledgerRows) ? res.ledgerRows : ledgerRows;
+        document.getElementById('ldInPurpose').value = "";
+        document.getElementById('ldInLabor').value = "";
+        document.getElementById('ldInCtrl').value = "";
+        document.getElementById('ldInTrans').value = "";
+        document.getElementById('ldInMisc').value = "";
+        document.getElementById('ldInNote').value = "";
+        renderLedgerView();
+      } catch (err) {
+        alert("บันทึกไม่สำเร็จ: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "➕ บันทึกลงสมุดคุมงบ";
+      }
+    }
+
+    async function removeLedgerEntry(id) {
+      if (!id || !confirm("ต้องการลบรายการนี้ออกจากสมุดคุมงบ WBS ใช่หรือไม่?")) return;
+      document.getElementById('loader').classList.remove('hidden');
+      try {
+        const res = await apiPost('deleteLedgerEntry', { id });
+        ledgerRows = (res && res.ledgerRows) ? res.ledgerRows : ledgerRows.filter(r => r.id !== id);
+        renderLedgerView();
+      } catch (err) {
+        alert("ลบไม่สำเร็จ: " + err.message);
+      } finally {
+        document.getElementById('loader').classList.add('hidden');
+      }
+    }
+
+    function jumpFromLedgerToForm() {
+      const wbs = document.getElementById('ledgerWbsInput').value.trim();
+      const net = document.getElementById('ledgerNetworkFilter').value;
+      selectForForm(wbs, net);
+    }
+
+    function selectForLedger(wbs, network) {
+      switchTab('ledger');
+      if (wbs) {
+        document.getElementById('ledgerWbsInput').value = wbs;
+        handleLedgerWbsChange();
+        if (network) {
+          document.getElementById('ledgerNetworkFilter').value = network;
+          document.getElementById('ldInNetwork').value = network;
+        }
+      }
+      renderLedgerView();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ================= TAB 3: DASHBOARD LOGIC =================
+    function setCardValue(elId, value, defaultColorClass) {
+      const el = document.getElementById(elId);
+      el.innerText = fmtMoney(value) + " ฿";
+      el.className = "text-xl font-bold mt-1.5 " + (value < 0 ? "text-rose-400" : defaultColorClass);
+    }
+
+    function applyDashFilter() {
+      const q = document.getElementById('dashSearch').value.toLowerCase();
+      const st = document.getElementById('dashStatusFilter').value;
+      const rawPct = parseFloat(document.getElementById('dashApprovePct').value);
+      const approvePct = isNaN(rawPct) ? 80 : rawPct;
+
+      const filtered = allRecords.filter(r => {
+        const matchText = r.wbs.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q) || r.network.includes(q);
+        const matchSt = !st || r.sysStatus.includes(st);
+        return matchText && matchSt;
+      });
+
+      const mainRows = filtered.filter(r => r.network === "");
+      const calcRows = mainRows.length > 0 ? mainRows : filtered;
+
+      let sumPlnLabor = 0, sumActLabor = 0;
+      let sumPlnCtrl = 0, sumActCtrl = 0;
+      let sumPlnTrans = 0, sumActTrans = 0;
+      let sumPlnMisc = 0, sumActMisc = 0;
+
+      let catPln = [0, 0, 0, 0, 0];
+      let catAct = [0, 0, 0, 0, 0];
+      let statusTotals = { CLSD: 0, TECO: 0, REL: 0, OTHER: 0 };
+
+      calcRows.forEach(r => {
+        sumPlnLabor += r.plnLabor; sumActLabor += r.actLabor;
+        sumPlnCtrl  += r.plnCtrl;  sumActCtrl  += r.actCtrl;
+        sumPlnTrans += r.plnTrans; sumActTrans += r.actTrans;
+        sumPlnMisc  += r.plnMisc;  sumActMisc  += r.actMisc;
+
+        catPln[0] += r.plnMat; catPln[1] += r.plnLabor; catPln[2] += r.plnCtrl; catPln[3] += r.plnTrans; catPln[4] += r.plnMisc;
+        catAct[0] += r.actMat; catAct[1] += r.actLabor; catAct[2] += r.actCtrl; catAct[3] += r.actTrans; catAct[4] += r.actMisc;
+
+        if (r.sysStatus.includes("CLSD")) statusTotals.CLSD += r.actTotal;
+        else if (r.sysStatus.includes("TECO")) statusTotals.TECO += r.actTotal;
+        else if (r.sysStatus.includes("REL")) statusTotals.REL += r.actTotal;
+        else statusTotals.OTHER += r.actTotal;
+      });
+
+      const remLabor = sumPlnLabor - sumActLabor;
+      const remCtrl  = sumPlnCtrl  - sumActCtrl;
+      const remTrans = sumPlnTrans - sumActTrans;
+      const remMisc  = sumPlnMisc  - sumActMisc;
+
+      const totalPlnSite = sumPlnLabor + sumPlnCtrl + sumPlnTrans + sumPlnMisc;
+      const totalActSite = sumActLabor + sumActCtrl + sumActTrans + sumActMisc;
+      const approvedSiteBudget = totalPlnSite * (approvePct / 100);
+      const remSite = approvedSiteBudget - totalActSite;
+
+      setCardValue('kpiRemLabor', remLabor, 'text-emerald-400');
+      document.getElementById('subLabor').innerText = `Pln: ${fmtMoney(sumPlnLabor)} | Act: ${fmtMoney(sumActLabor)}`;
+      setCardValue('kpiRemCtrl', remCtrl, 'text-emerald-400');
+      document.getElementById('subCtrl').innerText = `Pln: ${fmtMoney(sumPlnCtrl)} | Act: ${fmtMoney(sumActCtrl)}`;
+      setCardValue('kpiRemTrans', remTrans, 'text-emerald-400');
+      document.getElementById('subTrans').innerText = `Pln: ${fmtMoney(sumPlnTrans)} | Act: ${fmtMoney(sumActTrans)}`;
+      setCardValue('kpiRemMisc', remMisc, 'text-emerald-400');
+      document.getElementById('subMisc').innerText = `Pln: ${fmtMoney(sumPlnMisc)} | Act: ${fmtMoney(sumActMisc)}`;
+      setCardValue('kpiRemSite', remSite, 'text-amber-300');
+      document.getElementById('subSite').innerText = `อนุมัติ (${approvePct}%): ${fmtMoney(approvedSiteBudget)} | Act: ${fmtMoney(totalActSite)}`;
+
+      renderCharts(catPln, catAct, statusTotals);
+      renderTable(filtered.slice(0, 50));
+    }
+
+    function renderCharts(catPln, catAct, statusTotals) {
+      const ctxBar = document.getElementById('barChart').getContext('2d');
+      if (barChartObj) barChartObj.destroy();
+      barChartObj = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: ['ค่าพัสดุ', 'ค่าแรง', 'ค่าควบคุมงาน', 'ค่าขนส่ง', 'ค่าเบ็ดเตล็ด'],
+          datasets: [
+            { label: 'แผน (Pln.)', data: catPln, backgroundColor: '#7E22CE', borderRadius: 6 },
+            { label: 'จ่ายจริง (Act.)', data: catAct, backgroundColor: '#F59E0B', borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: '#FDE68A' } } },
+          scales: {
+            x: { ticks: { color: '#E9D5FF' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#E9D5FF' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+
+      const ctxDonut = document.getElementById('donutChart').getContext('2d');
+      if (donutChartObj) donutChartObj.destroy();
+      donutChartObj = new Chart(ctxDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['CLSD', 'TECO', 'REL', 'อื่นๆ'],
+          datasets: [{
+            data: [statusTotals.CLSD, statusTotals.TECO, statusTotals.REL, statusTotals.OTHER],
+            backgroundColor: ['#D4AF37', '#9333EA', '#10B981', '#64748B'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom', labels: { color: '#FDE68A' } } }
+        }
+      });
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById('dashTableBody');
+      const remCell = (val) => {
+        const cls = val < 0 ? "text-rose-400 font-semibold" : "text-emerald-300";
+        return `<td class="py-2.5 px-3 text-right whitespace-nowrap ${cls}">${fmtMoney(val)}</td>`;
+      };
+
+      tbody.innerHTML = rows.map(r => {
+        const remLabor = r.plnLabor - r.actLabor;
+        const remCtrl  = r.plnCtrl  - r.actCtrl;
+        const remTrans = r.plnTrans - r.actTrans;
+        const remMisc  = r.plnMisc  - r.actMisc;
+
+        return `
+          <tr class="hover:bg-purple-900/40 transition">
+            <td class="py-2.5 px-3 font-medium text-amber-300 whitespace-nowrap">${escapeHtml(r.wbs)}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${escapeHtml(r.network || "-")}</td>
+            <td class="py-2.5 px-3">${escapeHtml(r.desc)}</td>
+            ${remCell(remLabor)}
+            ${remCell(remCtrl)}
+            ${remCell(remTrans)}
+            ${remCell(remMisc)}
+            <td class="py-2.5 px-3 text-center whitespace-nowrap space-x-1">
+              <button data-wbs="${escapeHtml(r.wbs)}" data-net="${escapeHtml(r.network)}" onclick="selectForLedger(this.dataset.wbs, this.dataset.net)" class="px-2.5 py-1 rounded-lg bg-purple-800 text-purple-100 border border-purple-500/40 hover:bg-purple-700 text-xs font-semibold">
+                📒 สมุดคุม
+              </button>
+              <button data-wbs="${escapeHtml(r.wbs)}" data-net="${escapeHtml(r.network)}" onclick="selectForForm(this.dataset.wbs, this.dataset.net)" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-purple-950 text-xs font-semibold">
+                ออกใบรับรองฯ
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function selectForForm(wbs, network) {
+      switchTab('form');
+      if (wbs) {
+        document.getElementById('inputWbs').value = wbs;
+        handleWbsInput();
+        if (network) {
+          document.getElementById('selectNetwork').value = network;
+        }
+      }
+      updatePreview();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
