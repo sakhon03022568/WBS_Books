@@ -81,6 +81,9 @@
         <p class="text-xs text-purple-300">การไฟฟ้าส่วนภูมิภาคจังหวัดสกลนคร | เชื่อมต่อชีต 48Form, Form & คุมงบWBS</p>
       </div>
       <div class="flex flex-wrap gap-2">
+        <a href="https://script.google.com/macros/s/AKfycbz3xxp5KlSL8a7LZhIccxGT25PodsKE24GKUdViMh69gXMDfNV1Lf7ns_l2NiUg3d1U/exec" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl font-semibold text-sm bg-purple-900/70 text-sky-300 border border-sky-400/40 hover:bg-purple-800 inline-flex items-center gap-1.5">
+          🔍 ดูข้อมูล SAP
+        </a>
         <button onclick="switchTab('form')" id="btnTabForm" class="px-4 py-2 rounded-xl font-semibold text-sm gold-gradient text-purple-950 shadow">
           📄 ใบรับรองการขอใช้งบประมาณ
         </button>
@@ -463,7 +466,7 @@
         <div class="md:col-span-2"><span class="font-bold">ชื่องาน:</span> <span id="ldPvDesc">-</span></div>
         <div><span class="font-bold">โครงข่ายที่แสดง:</span> <span id="ldPvNet">ทั้งหมด</span></div>
         <div><span class="font-bold">ยอดอนุมัติ (<span id="ldPvApprovePct">80%</span>):</span> <span id="ldPvApproved">0.00</span> บาท</div>
-        <div><span class="font-bold">จ่ายจริงใน SAP:</span> <span id="ldPvSapAct">0.00</span> บาท (คงเหลือ SAP: <span id="ldPvSapRem">0.00</span>)</div>
+        <div><span class="font-bold">จ่ายจริงใน SAP:</span> <span id="ldPvSapAct">0.00</span> บาท (คงเหลือ SAP เทียบอนุมัติ: <span id="ldPvSapRem">0.00</span>)</div>
       </div>
 
       <table class="pea-table text-[12px]">
@@ -1075,7 +1078,8 @@
           const nPlan = (n.plnLabor || 0) + (n.plnCtrl || 0) + (n.plnTrans || 0) + (n.plnMisc || 0);
           const nApproved = nPlan * (approvePct / 100);
           const nAct  = (n.actLabor || 0) + (n.actCtrl || 0) + (n.actTrans || 0) + (n.actMisc || 0);
-          const nSapRem = nPlan - nAct;
+          const nSapRemPlan = nPlan - nAct;
+          const nSapRemApp  = nApproved - nAct;
 
           const nBookRows = ledgerRows.filter(r => r.wbs === wbs && r.network === n.network);
           const bLabor = nBookRows.reduce((s, r) => s + (r.labor || 0), 0);
@@ -1111,7 +1115,10 @@
                 <div class="text-[11px] font-normal text-purple-300">แผน 100%: ${fmtMoney(nPlan)}</div>
               </td>
               <td class="py-2.5 px-3 text-right text-amber-200">${fmtMoney(nAct)}</td>
-              <td class="py-2.5 px-3 text-right ${nSapRem < 0 ? 'text-rose-400' : 'text-emerald-300'}">${fmtMoney(nSapRem)}</td>
+              <td class="py-2.5 px-3 text-right">
+                <div class="${remClass(nSapRemApp)}">${fmtMoney(nSapRemApp)}</div>
+                <div class="text-[11px] font-normal text-purple-300">เทียบแผน 100%: ${fmtMoney(nSapRemPlan)}</div>
+              </td>
               <td class="py-2.5 px-3 text-right text-sky-300">${fmtMoney(nBook)}</td>
               <td class="py-2.5 px-3 text-right">
                 <div class="${remClass(nBookRemApp)}">${fmtMoney(nBookRemApp)}</div>
@@ -1148,7 +1155,7 @@
       document.getElementById('ldPvApprovePct').innerText = approvePct + "%";
       document.getElementById('ldPvApproved').innerText = fmtMoney(sumApproved);
       document.getElementById('ldPvSapAct').innerText = fmtMoney(sumSapAct);
-      document.getElementById('ldPvSapRem').innerText = fmtMoney(sumPlan - sumSapAct);
+      document.getElementById('ldPvSapRem').innerText = fmtMoney(sapRem);
 
       const tbody = document.getElementById('ldLedgerBody');
       const tfoot = document.getElementById('ldLedgerFoot');
